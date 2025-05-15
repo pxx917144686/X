@@ -8,9 +8,11 @@
 import Foundation
 import SwiftUI
 
-// 移除之前的类定义，统一使用这一个实现
+// 保留这一个统一的LogStore实现
 class LogStore: ObservableObject {
     @Published var logs: [String] = []
+    
+    // 添加单例，便于全局访问
     static let shared = LogStore()
     
     func append(message: String) {
@@ -20,7 +22,7 @@ class LogStore: ObservableObject {
             print(logEntry)
             self.logs.append(logEntry)
             
-            // 限制日志数量避免内存占用过多
+            // 限制日志数量
             if self.logs.count > 1000 {
                 self.logs.removeFirst(500)
             }
