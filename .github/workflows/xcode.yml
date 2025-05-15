@@ -130,7 +130,7 @@ jobs:
           
           # 4. 修改桥接头文件
           cp X/X-Bridging-Header.h X/X-Bridging-Header.h.bak
-          sed -i 's|#import "objc PoC/BootstrapExtractor.h"|#import "BootstrapExtractor.h"|g' X/X-Bridging-Header.h
+          sed -i '' 's|#import "objc PoC/BootstrapExtractor.h"|#import "BootstrapExtractor.h"|g' 'X/X-Bridging-Header.h'
       
       - name: 构建IPA
         run: |
