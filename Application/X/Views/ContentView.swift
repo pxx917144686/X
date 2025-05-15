@@ -386,7 +386,7 @@ struct ExploitChainView: View {
             let tccDbPath = "/var/mobile/Library/TCC/TCC.db"
             
             // 应用清零操作
-            let result = applySwiftFileZeroExploit(tccDbPath, false)
+            let result = applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
             
             if result.success {
                 logStore.append(message: "TCC权限数据库已成功修改")
