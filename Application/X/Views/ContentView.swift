@@ -404,6 +404,24 @@ struct ExploitChainView: View {
     }
 }
 
+// 在ContentView.swift的ExploitChainView扩展中添加这些方法
+extension ExploitChainView {
+    func finalizeExploit(_ success: Bool) {
+        // 实现函数逻辑
+        if success {
+            logStore.append(message: "漏洞利用完成！")
+        } else {
+            logStore.append(message: "漏洞利用失败")
+        }
+        isRunning = false
+    }
+    
+    func showFailure(stage: String) {
+        logStore.append(message: "失败阶段: \(stage)")
+        isRunning = false
+    }
+}
+
 // 将主界面拆分为单独的View
 struct ExploitChainMainView: View {
     @Binding var isRunning: Bool
