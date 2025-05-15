@@ -56,19 +56,23 @@ jobs:
       
       - name: 修改主Makefile
         run: |
-          # 使用单引号的EOL防止变量扩展
-          cat > Application/GithubActions.mk << 'EOL'
-all:
-    xcodebuild -project X.xcodeproj -scheme X -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
-    mkdir -p Payload
-    cp -r build/Release-iphoneos/X.app Payload/
-    zip -r X.tipa Payload
-    rm -rf Payload
-EOL
+          # 创建一个简化的Application Makefile
+          cat > Application/GithubActions.mk << EOL
+          all:
+              xcodebuild -project X.xcodeproj -scheme X -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+              mkdir -p Payload
+              cp -r build/Release-iphoneos/X.app Payload/
+              zip -r X.tipa Payload
+              rm -rf Payload
+          EOL
       
       - name: 构建IPA
         run: |
-          cd Application && make -f GithubActions.mk
+          cd Application
+          xcodebuild -project X.xcodeproj -scheme X -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          mkdir -p Payload
+          cp -r build/Release-iphoneos/X.app Payload/
+          zip -r X.tipa Payload
           
           # 检查生成的IPA
           if [ -f "X.tipa" ]; then
