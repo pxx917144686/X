@@ -588,15 +588,15 @@ struct AdvancedExploitConfigView: View {
         logStore.append(message: "高级文件修改: 开始执行组合漏洞链，目标文件数量: \(selectedFiles.count)")
         
         ExploitChainManager.shared.logStore = logStore
-        ExploitChainManager.shared.executeFullExploitChain(targets: selectedFiles) { success, message in
+        ExploitChainManager.shared.executeFullExploitChain { success in
             DispatchQueue.main.async {
-                self.status = message
+                self.status = success ? "组合漏洞链执行成功" : "组合漏洞链执行失败"
                 self.isProcessing = false
                 
                 if success {
-                    logStore.append(message: "高级文件修改完成: \(message)")
+                    logStore.append(message: "高级文件修改完成")
                 } else {
-                    logStore.append(message: "高级文件修改失败: \(message)")
+                    logStore.append(message: "高级文件修改失败")
                 }
             }
         }
