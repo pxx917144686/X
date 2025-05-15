@@ -1,5 +1,7 @@
 //
-//  
+//  X
+//
+//  Created by pxx917144686 on 2025/05/15.
 //
 
 #ifndef X_Bridging_Header_h
@@ -8,6 +10,7 @@
 #import <Foundation/Foundation.h>
 #include "exploit_poc.h"
 #import "RespringHelper.h"
+#import "BootstrapExtractor.h" 
 
 // 漏洞利用链接口
 bool trigger_kernel_exploit(void);
