@@ -8,19 +8,29 @@
 import Foundation
 import SwiftUI
 
+// 移除之前的类定义，统一使用这一个实现
 class LogStore: ObservableObject {
-    @Published var messages: [String] = []
+    @Published var logs: [String] = []
+    static let shared = LogStore()
     
     func append(message: String) {
-        messages.append(message)
+        DispatchQueue.main.async {
+            let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
+            let logEntry = "[\(timestamp)] \(message)"
+            print(logEntry)
+            self.logs.append(logEntry)
+            
+            // 限制日志数量避免内存占用过多
+            if self.logs.count > 1000 {
+                self.logs.removeFirst(500)
+            }
+        }
     }
     
     func clear() {
-        messages.removeAll()
-    }
-    
-    func clearMessages() {
-        clear()
+        DispatchQueue.main.async {
+            self.logs.removeAll()
+        }
     }
 }
 
