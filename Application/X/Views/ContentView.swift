@@ -352,23 +352,15 @@ struct ExploitChainView: View {
     }
     
     // 辅助方法，转换安装步骤为显示名称
-    private func getStepName(_ step: SileoInstallStep) -> String {
-        switch step {
-        case .extractingBootstrap:
-            return "解压基础系统"
-        case .downloadingSileo:
-            return "下载Sileo包"
-        case .extractingPackage:
-            return "解压安装包"
-        case .configuringPermissions:
-            return "配置权限"
-        case .registeringURLScheme:
-            return "注册URL方案"
-        case .setupAptSources:
-            return "配置APT源"
-        case .installDependencies:
-            return "安装依赖"
+    private func getStepName(_ step: Any) -> String {
+        if let sileoStep = step as? SileoInstallStep {
+            // 处理SileoInstallStep
+            // ...
+        } else if let progress = step as? InstallationProgress {
+            // 处理InstallationProgress
+            // ...
         }
+        return "未知步骤"
     }
     
     // 根据选择的漏洞类型获取目标文件
@@ -963,23 +955,15 @@ extension ContentView {
         }
     }
     
-    func getStepName(_ step: InstallationProgress) -> String {
-        switch step {
-        case .downloadingSileo:
-            return "下载Sileo"
-        case .extractingPackage:
-            return "解压安装包"
-        case .extractingBootstrap:
-            return "解压启动环境"
-        case .configuringPermissions:
-            return "配置权限"
-        case .registeringURLScheme:
-            return "注册URL方案"
-        case .setupAptSources:
-            return "设置APT源"
-        case .installDependencies:
-            return "安装依赖"
+    func getStepName(_ step: Any) -> String {
+        if let sileoStep = step as? SileoInstallStep {
+            // 处理SileoInstallStep
+            // ...
+        } else if let progress = step as? InstallationProgress {
+            // 处理InstallationProgress
+            // ...
         }
+        return "未知步骤"
     }
     
     func finalizeJailbreak(_ success: Bool) {
