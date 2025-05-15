@@ -28,57 +28,82 @@ jobs:
         run: |
           brew install ldid
       
-      - name: 创建必要的空目录结构
+      - name: 创建必要的空目录结构和Makefile
         run: |
-          # 创建在Makefile中引用的所有子项目目录
-          mkdir -p BaseBin/ChOma
-          mkdir -p BaseBin/XPF
-          mkdir -p BaseBin/MachOMerger
-          mkdir -p BaseBin/opainject
-          mkdir -p BaseBin/libjailbreak
-          mkdir -p BaseBin/systemhook
-          mkdir -p BaseBin/forkfix
-          mkdir -p BaseBin/launchdhook
-          mkdir -p BaseBin/boomerang
-          mkdir -p BaseBin/jbctl
-          mkdir -p BaseBin/idownloadd
-          mkdir -p BaseBin/watchdoghook
-          mkdir -p BaseBin/rootlesshooks
-          mkdir -p BaseBin/dyldhook
+          # 创建子项目目录列表
+          SUBDIRS="ChOma XPF MachOMerger opainject libjailbreak systemhook forkfix launchdhook boomerang jbctl idownloadd watchdoghook rootlesshooks dyldhook"
           
-          # 在每个目录中创建最小的Makefile
-          for dir in BaseBin/{ChOma,XPF,MachOMerger,opainject,libjailbreak,systemhook,forkfix,launchdhook,boomerang,jbctl,idownloadd,watchdoghook,rootlesshooks,dyldhook}; do
-            echo "clean:" > $dir/Makefile
-            echo "	@echo 'Cleaned \$$(basename \$$(pwd))'" >> $dir/Makefile
+          # 为每个目录创建结构并添加基本Makefile
+          for DIR in $SUBDIRS; do
+            mkdir -p BaseBin/$DIR
+            echo "clean:" > BaseBin/$DIR/Makefile
+            echo "	@echo 'Cleaned $DIR'" >> BaseBin/$DIR/Makefile
           done
           
           # 创建_external目录结构
           mkdir -p BaseBin/_external/basebin
           mkdir -p BaseBin/_external/include
           mkdir -p BaseBin/_external/lib
-          touch [.version](http://_vscodecontentref_/0)
+          touch BaseBin/_external/basebin/.version
       
       - name: 准备资源文件
         run: |
           mkdir -p bootstrap/{usr/bin,usr/lib,basebin}
-          touch bootstrap/usr/bin/{bash,dpkg}
-          touch [libc.dylib](http://_vscodecontentref_/1)
-          tar -cf [bootstrap.tar](http://_vscodecontentref_/2) -C bootstrap .
+          touch bootstrap/usr/bin/bash
+          touch bootstrap/usr/bin/dpkg
+          touch bootstrap/usr/lib/libc.dylib
+          tar -cf bootstrap.tar -C bootstrap .
+      
+      - name: 修改主Makefile
+        run: |
+          # 创建一个简化的Application Makefile
+          cat > Application/GithubActions.mk << EOL
+          all:
+              xcodebuild -project X.xcodeproj -scheme X -configuration Release CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+              mkdir -p Payload
+              cp -r build/Release-iphoneos/X.app Payload/
+              zip -r X.tipa Payload
+              rm -rf Payload
+          EOL
       
       - name: 构建IPA
         run: |
-          # 直接构建应用，不执行make clean
-          make -C Application
-          # 或者也可以尝试:
-          # cd Application && xcodebuild -project X.xcodeproj -scheme X -configuration Release
+          cd Application && make -f GithubActions.mk
           
           # 检查生成的IPA
-          if [ -f "Application/X.tipa" ]; then
+          if [ -f "X.tipa" ]; then
             mkdir -p $RUNNER_TEMP/build
-            cp Application/X.tipa $RUNNER_TEMP/build/X.ipa
+            cp X.tipa $RUNNER_TEMP/build/X.ipa
           else
             echo "构建失败: 未找到X.tipa文件"
+            find . -name "*.ipa" -o -name "*.tipa"
             exit 1
           fi
       
-      # 其余步骤保持不变...
+      - name: 上传IPA作为工作流产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: X-未签名应用
+          path: ${{ runner.temp }}/build/X.ipa
+          
+      - name: 获取当前日期
+        id: date
+        run: echo "date=$(date +'%Y%m%d-%H%M')" >> $GITHUB_OUTPUT
+        
+      - name: 创建Release
+        if: github.event_name != 'pull_request'
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: build-${{ steps.date.outputs.date }}
+          name: 自动构建 ${{ steps.date.outputs.date }}
+          body: |
+            X自动构建版本
+            
+            构建时间: ${{ steps.date.outputs.date }}
+            未签名IPA文件，需要自行签名后安装。
+          draft: false
+          prerelease: true
+          files: ${{ runner.temp }}/build/X.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
