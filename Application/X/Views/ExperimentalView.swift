@@ -603,6 +603,21 @@ struct AdvancedExploitConfigView: View {
     }
 }
 
+extension ExperimentalView {
+    func runExploitChain() {
+        // 执行完整的漏洞利用链
+        ExploitChainManager.shared.executeFullExploitChain { success in
+            if success {
+                // 处理成功
+                self.logStore.append(message: "漏洞利用链执行成功")
+            } else {
+                // 处理失败
+                self.logStore.append(message: "漏洞利用链执行失败")
+            }
+        }
+    }
+}
+
 struct ExperimentalView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
