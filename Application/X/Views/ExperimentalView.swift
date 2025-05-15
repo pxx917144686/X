@@ -135,7 +135,7 @@ struct ExperimentalView: View {
                         title: Text("Confirm XPC Respring"),
                         message: Text("This method is risky and targets a system service. Ensure you understand the implications. Continue?"),
                         primaryButton: .destructive(Text("Yes, Attempt XPC")) {
-                            $experimentRunner.performXPCRespring(
+                            experimentRunner.performXPCRespring(
                                 logStore: logStore,
                                 statusUpdate: { newStatus in xpcRespringStatus = newStatus },
                                 processingUpdate: { newProcessing in isProcessingXPCRespring = newProcessing }
