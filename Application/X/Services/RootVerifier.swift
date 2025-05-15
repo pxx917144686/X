@@ -375,7 +375,7 @@ extension RootVerifier {
         }
         
         // 检查是否可以运行未签名代码
-        if let result = try? executeCommand("echo 'Jailbreak test'").output {
+        if let result = executeCommand("echo 'Jailbreak test'").output {
             if result.contains("Jailbreak test") {
                 jailbroken = true
                 details.append("可以执行命令行命令")
