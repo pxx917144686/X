@@ -70,8 +70,10 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/Application
           
-          # 1. 直接创建新的exploit_poc.h文件
+          # 1. 创建必要的目录
           mkdir -p 'X/objc PoC'
+          
+          # 2. 创建exploit_poc.h文件
           cat > 'X/objc PoC/exploit_poc.h' << 'EOF'
           //
           //  exploit_poc.h
@@ -88,7 +90,7 @@ jobs:
           #endif /* exploit_poc_h */
           EOF
           
-          # 2. 创建BootstrapExtractor.h文件
+          # 3. 创建BootstrapExtractor.h文件
           cat > 'X/objc PoC/BootstrapExtractor.h' << 'EOF'
           #ifndef BootstrapExtractor_h
           #define BootstrapExtractor_h
@@ -102,7 +104,7 @@ jobs:
           #endif /* BootstrapExtractor_h */
           EOF
           
-          # 3. 创建BootstrapExtractor.m文件
+          # 4. 创建BootstrapExtractor.m文件
           cat > 'X/objc PoC/BootstrapExtractor.m' << 'EOF'
           #import <Foundation/Foundation.h>
           #import <mach/mach.h>
@@ -128,9 +130,59 @@ jobs:
           }
           EOF
           
-          # 4. 修改桥接头文件
+          # 5. 修改桥接头文件
           cp X/X-Bridging-Header.h X/X-Bridging-Header.h.bak
           sed -i '' 's|#import "objc PoC/BootstrapExtractor.h"|#import "BootstrapExtractor.h"|g' 'X/X-Bridging-Header.h'
+          
+          # 6. 修复ExploitChainManager.swift
+          cat > 'X/Services/ExploitChainManager.swift' << 'EOF'
+          //
+          //  ExploitChainManager.swift
+          //  X
+          //
+          //  Created by pxx917144686 on 2025/05/15.
+          //
+
+          import Foundation
+          import SwiftUI
+
+          class ExploitChainManager: ObservableObject {
+              static let shared = ExploitChainManager()
+              private init() {}
+              
+              func executeFullExploitChain(completion: @escaping (Bool) -> Void) {
+                  // 执行exploit_iokit_cve_2023_42824和trigger_kernel_exploit函数
+                  DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                      guard let self = self else { return }
+                      
+                      // 尝试执行内核漏洞利用
+                      if trigger_kernel_exploit() {
+                          print("内核漏洞利用成功")
+                          
+                          // 解压bootstrap
+                          if extract_bootstrap_to_jb() {
+                              print("Bootstrap解压成功")
+                              DispatchQueue.main.async {
+                                  completion(true)
+                              }
+                          } else {
+                              print("Bootstrap解压失败")
+                              DispatchQueue.main.async {
+                                  completion(false)
+                              }
+                          }
+                      } else {
+                          print("内核漏洞利用失败")
+                          DispatchQueue.main.async {
+                              completion(false)
+                          }
+                      }
+                  }
+              }
+              
+              // 其他Swift代码...
+          }
+          EOF
       
       - name: 构建IPA
         run: |
