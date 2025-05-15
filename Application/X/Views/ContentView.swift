@@ -1027,4 +1027,19 @@ extension ContentView {
             }
         }
     }
+    
+    // 修复闭包中的self引用问题
+    func executeFunction() {
+        // 在这里定义prepareCorruptedMP4File而非在外层
+        prepareCorruptedMP4File { [weak self] success, url in
+            guard let self = self else { return }
+            
+            // 现在可以安全使用self
+            if success, let fileURL = url {
+                self.logStore.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
+            } else {
+                self.logStore.append(message: "创建畸形MP4文件失败")
+            }
+        }
+    }
 }
