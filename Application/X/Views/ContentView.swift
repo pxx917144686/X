@@ -381,24 +381,19 @@ struct ExploitChainView: View {
         logStore.append(message: "阶段5: 执行TCC绕过")
         statusText = "阶段5: 绕过系统权限控制"
         
-        do {
-            // TCC数据库路径
-            let tccDbPath = "/var/mobile/Library/TCC/TCC.db"
-            
-            // 应用清零操作
-            let result = CoreExploitLib.applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
-            
-            if result {
-                logStore.append(message: "TCC权限数据库已成功修改")
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    self.finalizeExploit(true)
-                }
-            } else {
-                logStore.append(message: "TCC绕过失败")
-                self.finalizeExploit(false)
+        // TCC数据库路径
+        let tccDbPath = "/var/mobile/Library/TCC/TCC.db"
+        
+        // 应用清零操作
+        let result = CoreExploitLib.applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
+        
+        if result {
+            logStore.append(message: "TCC权限数据库已成功修改")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.finalizeExploit(true)
             }
-        } catch {
-            logStore.append(message: "TCC绕过出现异常: \(error)")
+        } else {
+            logStore.append(message: "TCC绕过失败")
             self.finalizeExploit(false)
         }
     }
@@ -830,5 +825,152 @@ extension Int32 {
     
     var error: String {
         return String(describing: self)
+    }
+}
+
+// 在ContentView中添加以下方法
+
+extension ContentView {
+    // 禁用SIP (System Integrity Protection)
+    func disableSIP(completion: @escaping (Bool) -> Void) {
+        logStore.append(message: "正在禁用SIP保护...")
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 调用内核漏洞来禁用SIP
+            let success = ExploitChainManager.shared.executeKernelExploit()
+            
+            DispatchQueue.main.async {
+                if success {
+                    self.logStore.append(message: "SIP禁用成功")
+                } else {
+                    self.logStore.append(message: "SIP禁用失败")
+                }
+                completion(success)
+            }
+        }
+    }
+    
+    // 执行CoreMedia漏洞利用
+    func executeCoreMediaExploit() {
+        logStore.append(message: "开始执行CoreMedia漏洞利用...")
+        
+        // 调用ExploitChainManager准备畸形MP4文件
+        ExploitChainManager.shared.prepareCorruptedMP4File { [weak self] success, url in
+            guard let self = self, success, let url = url else {
+                self?.logStore.append(message: "准备MP4文件失败")
+                return
+            }
+            
+            self.logStore.append(message: "准备播放畸形MP4文件...")
+            
+            // 创建AVPlayer播放畸形文件
+            let playerItem = AVPlayerItem(url: url)
+            let player = AVPlayer(playerItem: playerItem)
+            
+            // 播放前添加通知监听崩溃或失败
+            NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { _ in
+                self.logStore.append(message: "播放失败 - 漏洞可能已触发")
+                
+                // 清理通知
+                NotificationCenter.default.removeObserver(self)
+                
+                // 继续SIP禁用步骤
+                self.disableSIP { sipDisabled in
+                    if sipDisabled {
+                        self.logStore.append(message: "SIP禁用成功")
+                        
+                        // 尝试执行内核漏洞
+                        self.executeKernelExploit { success in
+                            if success {
+                                self.logStore.append(message: "内核漏洞利用成功")
+                                self.downloadSileo()
+                            } else {
+                                self.logStore.append(message: "内核漏洞利用失败")
+                            }
+                        }
+                    } else {
+                        self.logStore.append(message: "SIP禁用失败")
+                    }
+                }
+            }
+            
+            // 开始播放
+            player.play()
+        }
+    }
+    
+    // 连接到ObjC实现的内核漏洞
+    func executeKernelExploit(completion: @escaping (Bool) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 调用Objective-C实现的内核漏洞
+            let success = trigger_kernel_exploit()
+            
+            DispatchQueue.main.async {
+                completion(success)
+            }
+        }
+    }
+    
+    // 下载Sileo
+    func downloadSileo() {
+        logStore.append(message: "开始下载Sileo...")
+        
+        ExploitChainManager.shared.downloadSileo { [weak self] success, path in
+            guard let self = self else { return }
+            
+            if success, let path = path {
+                self.logStore.append(message: "Sileo下载成功: \(path)")
+                self.installSileo(path: path)
+            } else {
+                self.logStore.append(message: "Sileo下载失败")
+            }
+        }
+    }
+    
+    // 安装Sileo
+    func installSileo(path: String) {
+        logStore.append(message: "开始安装Sileo...")
+        
+        // 调用SileoInstaller执行安装
+        SileoInstaller.shared.installSileo(
+            progressHandler: { step in
+                DispatchQueue.main.async {
+                    self.statusText = "Sileo安装: \(self.getStepName(step))"
+                }
+            },
+            completion: { success in
+                DispatchQueue.main.async {
+                    if success {
+                        self.logStore.append(message: "Sileo安装成功!")
+                        self.finalizeExploit(true)
+                    } else {
+                        self.logStore.append(message: "Sileo安装失败")
+                        self.finalizeExploit(false)
+                    }
+                }
+            }
+        )
+    }
+    
+    // 实现TCC绕过
+    func performTCCBypass() {
+        logStore.append(message: "阶段5: 执行TCC绕过")
+        statusText = "阶段5: 绕过系统权限控制"
+        
+        // TCC数据库路径
+        let tccDbPath = "/var/mobile/Library/TCC/TCC.db"
+        
+        // 应用清零操作
+        let result = CoreExploitLib.applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
+        
+        if result {
+            logStore.append(message: "TCC权限数据库已成功修改")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.finalizeExploit(true)
+            }
+        } else {
+            logStore.append(message: "TCC绕过失败")
+            self.finalizeExploit(false)
+        }
     }
 }
