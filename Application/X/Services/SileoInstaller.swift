@@ -273,7 +273,7 @@ class SileoInstaller {
         ]
         
         for command in chmodCommands {
-            RootVerifier.shared.executeCommand(command)
+            let _ = RootVerifier.shared.executeCommand(command)
         }
     }
     
@@ -284,7 +284,7 @@ class SileoInstaller {
         // 这里我们只需确保文件存在权限正确
         let infoPath = "/var/jb/Applications/Sileo.app/Info.plist"
         if FileManager.default.fileExists(atPath: infoPath) {
-            RootVerifier.shared.executeCommand("chmod 644 \(infoPath)")
+            let _ = RootVerifier.shared.executeCommand("chmod 644 \(infoPath)")
         }
     }
     
