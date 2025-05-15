@@ -70,13 +70,26 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE/Application
           
-          # 1. 修复exploit_poc.h注释
-          cp X/objc\ PoC/exploit_poc.h X/objc\ PoC/exploit_poc.h.bak
-          sed -i 's|#endif loit_poc_h \*/|#endif /* exploit_poc_h */|g' X/objc\ PoC/exploit_poc.h
+          # 1. 直接创建新的exploit_poc.h文件
+          mkdir -p 'X/objc PoC'
+          cat > 'X/objc PoC/exploit_poc.h' << 'EOF'
+          //
+          //  exploit_poc.h
+          //  X
+          //
+          //  Created by pxx917144686 on 2025/05/15.
+          //
+
+          #ifndef exploit_poc_h
+          #define exploit_poc_h
+
+          int poc(const char *filePath);
+
+          #endif /* exploit_poc_h */
+          EOF
           
           # 2. 创建BootstrapExtractor.h文件
-          mkdir -p X/objc\ PoC
-          cat > X/objc\ PoC/BootstrapExtractor.h << 'EOF'
+          cat > 'X/objc PoC/BootstrapExtractor.h' << 'EOF'
           #ifndef BootstrapExtractor_h
           #define BootstrapExtractor_h
 
@@ -90,7 +103,7 @@ jobs:
           EOF
           
           # 3. 创建BootstrapExtractor.m文件
-          cat > X/objc\ PoC/BootstrapExtractor.m << 'EOF'
+          cat > 'X/objc PoC/BootstrapExtractor.m' << 'EOF'
           #import <Foundation/Foundation.h>
           #import <mach/mach.h>
           #import "BootstrapExtractor.h"
@@ -118,10 +131,6 @@ jobs:
           # 4. 修改桥接头文件
           cp X/X-Bridging-Header.h X/X-Bridging-Header.h.bak
           sed -i 's|#import "objc PoC/BootstrapExtractor.h"|#import "BootstrapExtractor.h"|g' X/X-Bridging-Header.h
-          
-          # 5. 添加文件到Xcode项目
-          # 注意：需要将这些文件添加到项目中才能被正确编译
-          # 如果没有xcodebuild添加文件的命令，可能需要修改项目文件
       
       - name: 构建IPA
         run: |
