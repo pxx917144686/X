@@ -10,7 +10,7 @@
 #import <Foundation/Foundation.h>
 #include "exploit_poc.h"
 #import "RespringHelper.h"
-#import "objc PoC/BootstrapExtractor.h"
+#import "objc/BootstrapExtractor.h"
 
 // 漏洞利用链接口
 bool trigger_kernel_exploit(void);
