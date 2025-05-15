@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 // 主内容视图
 struct ContentView: View {
@@ -931,46 +932,115 @@ extension ContentView {
     func installSileo(path: String) {
         logStore.append(message: "开始安装Sileo...")
         
-        // 调用SileoInstaller执行安装
-        SileoInstaller.shared.installSileo(
-            progressHandler: { step in
-                DispatchQueue.main.async {
-                    self.statusText = "Sileo安装: \(self.getStepName(step))"
-                }
+        // 这里需要SileoInstaller类的实现，传递安装进度
+        let sileoInstaller = SileoInstaller.shared
+        
+        sileoInstaller.installSileo(
+            progressHandler: { [weak self] step in
+                guard let self = self else { return }
+                self.updateStatus("Sileo安装: \(self.getStepName(step))")
             },
-            completion: { success in
-                DispatchQueue.main.async {
-                    if success {
-                        self.logStore.append(message: "Sileo安装成功!")
-                        self.finalizeExploit(true)
-                    } else {
-                        self.logStore.append(message: "Sileo安装失败")
-                        self.finalizeExploit(false)
-                    }
+            completion: { [weak self] success in
+                guard let self = self else { return }
+                
+                if success {
+                    self.logStore.append(message: "Sileo安装成功!")
+                    self.finalizeJailbreak(true)
+                } else {
+                    self.logStore.append(message: "Sileo安装失败")
+                    self.finalizeJailbreak(false)
                 }
             }
         )
     }
     
-    // 实现TCC绕过
-    func performTCCBypass() {
-        logStore.append(message: "阶段5: 执行TCC绕过")
-        statusText = "阶段5: 绕过系统权限控制"
-        
-        // TCC数据库路径
-        let tccDbPath = "/var/mobile/Library/TCC/TCC.db"
-        
-        // 应用清零操作
-        let result = CoreExploitLib.applySwiftFileZeroExploit(filePath: tccDbPath, zeroAllPages: false)
-        
-        if result {
-            logStore.append(message: "TCC权限数据库已成功修改")
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                self.finalizeExploit(true)
-            }
+    func updateStatus(_ text: String) {
+        // 更新UI状态显示
+        DispatchQueue.main.async {
+            // 假设有一个状态文本属性
+            // self.statusText = text
+            print("状态更新: \(text)")
+        }
+    }
+    
+    func getStepName(_ step: InstallationProgress) -> String {
+        switch step {
+        case .downloadingSileo:
+            return "下载Sileo"
+        case .extractingPackage:
+            return "解压安装包"
+        case .extractingBootstrap:
+            return "解压启动环境"
+        case .configuringPermissions:
+            return "配置权限"
+        case .registeringURLScheme:
+            return "注册URL方案"
+        case .setupAptSources:
+            return "设置APT源"
+        case .installDependencies:
+            return "安装依赖"
+        }
+    }
+    
+    func finalizeJailbreak(_ success: Bool) {
+        if success {
+            logStore.append(message: "越狱完成! Sileo已安装")
+            // 更新UI状态
         } else {
-            logStore.append(message: "TCC绕过失败")
-            self.finalizeExploit(false)
+            logStore.append(message: "越狱流程中断，未完成")
+            // 更新UI状态
+        }
+    }
+    
+    // 执行越狱流程
+    func executeJailbreak() {
+        // 开始记录日志
+        logStore.append(message: "开始越狱流程...")
+        
+        // 准备畸形MP4文件触发漏洞
+        ExploitChainManager.shared.prepareCorruptedMP4File { success, url in
+            guard success, let url = url else {
+                self.logStore.append(message: "准备MP4文件失败")
+                return
+            }
+            
+            self.logStore.append(message: "准备播放畸形MP4文件...")
+            
+            // 创建AVPlayer播放畸形文件
+            let playerItem = AVPlayerItem(url: url)
+            let player = AVPlayer(playerItem: playerItem)
+            
+            // 播放前添加通知监听崩溃或失败
+            NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { [weak self] _ in
+                guard let self = self else { return }
+                
+                self.logStore.append(message: "播放失败 - 漏洞可能已触发")
+                
+                // 清理通知
+                NotificationCenter.default.removeObserver(self)
+                
+                // 执行完整的漏洞利用链
+                self.executeFullExploitChain()
+            }
+            
+            // 开始播放
+            player.play()
+        }
+    }
+    
+    func executeFullExploitChain() {
+        logStore.append(message: "开始执行完整漏洞利用链...")
+        
+        ExploitChainManager.shared.executeFullExploitChain { [weak self] success in
+            guard let self = self else { return }
+            
+            if success {
+                self.logStore.append(message: "漏洞利用链执行成功，准备下载Sileo")
+                self.downloadSileo()
+            } else {
+                self.logStore.append(message: "漏洞利用链执行失败")
+                // 可以在这里显示失败UI反馈
+            }
         }
     }
 }
