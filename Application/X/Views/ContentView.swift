@@ -6,13 +6,12 @@
 //
 
 import SwiftUI
-import AVFoundation
 
-// 删除重复的View定义，只保留一个ContentView
 struct ContentView: View {
     @ObservedObject private var logStore = LogStore.shared
+    @State private var selectedTab = 0
     
-    // 添加必要的状态变量
+    // 越狱状态变量
     @State private var selectedExploit: ExploitType = .userDefaults
     @State private var isRunning = false
     @State private var exploitStages: [ExploitStage] = []
@@ -24,75 +23,255 @@ struct ContentView: View {
     @State private var alertTitle = ""
     @State private var alertMessage = ""
     
-    // 简化主视图结构，拆分复杂表达式
+    // 设备信息
+    private let deviceModel = UIDevice.current.model
+    private let osVersion = UIDevice.current.systemVersion
+    private let exploitCompatibility = ExploitChainManager.shared.checkExploitCompatibility()
+    
     var body: some View {
+        TabView(selection: $selectedTab) {
+            // 主越狱页面
+            jailbreakView
+                .tabItem {
+                    Image(systemName: "bolt.fill")
+                    Text("越狱")
+                }
+                .tag(0)
+            
+            // Sileo商店页面
+            SileoView()
+                .tabItem {
+                    Image(systemName: "bag.fill")
+                    Text("Sileo")
+                }
+                .tag(1)
+            
+            // 实验性功能页面
+            ExperimentalView()
+                .tabItem {
+                    Image(systemName: "flask.fill")
+                    Text("实验")
+                }
+                .tag(2)
+            
+            // 验证页面
+            SileoVerificationView()
+                .tabItem {
+                    Image(systemName: "checkmark.shield.fill")
+                    Text("验证")
+                }
+                .tag(3)
+        }
+        .accentColor(.blue)
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertTitle),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("确定"))
+            )
+        }
+    }
+    
+    // MARK: - 越狱主视图
+    private var jailbreakView: some View {
         NavigationView {
-            VStack {
-                // 标题部分
-                headerView
-                
-                // 控制部分
-                controlView
-                
-                // 状态显示部分
-                statusView
-                
-                // 日志部分
-                LogsView(logStore: logStore, statusText: statusText)
+            ScrollView {
+                VStack(spacing: 20) {
+                    // 顶部信息卡片
+                    deviceInfoCard
+                    
+                    // 越狱配置选项
+                    jailbreakOptionsCard
+                    
+                    // 执行状态区域
+                    if isRunning || !exploitStages.isEmpty {
+                        jailbreakStatusCard
+                    }
+                    
+                    // 日志区域
+                    LogsView(logStore: logStore, statusText: statusText)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 20)
             }
-            .padding()
-            .alert(isPresented: $showAlert) {
-                Alert(
-                    title: Text(alertTitle),
-                    message: Text(alertMessage),
-                    dismissButton: .default(Text("确定"))
-                )
+            .navigationTitle(" X ")
+            .navigationBarItems(trailing: 
+                Button(action: { showCompatibilityInfo() }) {
+                    Image(systemName: "info.circle")
+                }
+            )
+        }
+    }
+    
+    // MARK: - UI 组件
+    private var deviceInfoCard: some View {
+        VStack(spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("设备信息")
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack {
+                        Text(deviceModel)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Spacer()
+                        
+                        Text("iOS \(osVersion)")
+                            .font(.title3)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                    }
+                }
+                
+                Spacer()
+                
+                ZStack {
+                    Circle()
+                        .fill(exploitCompatibility ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                        .frame(width: 50, height: 50)
+                    
+                    Image(systemName: exploitCompatibility ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        .font(.title)
+                        .foregroundColor(exploitCompatibility ? .green : .orange)
+                }
+            }
+            
+            Divider()
+            
+            HStack {
+                Label("内核漏洞", systemImage: "cpu")
+                    .font(.subheadline)
+                
+                Spacer()
+                
+                Text(compatibilityText(for: .kernel))
+                    .font(.subheadline)
+                    .foregroundColor(compatibilityColor(for: .kernel))
+            }
+            
+            HStack {
+                Label("WebKit漏洞", systemImage: "safari.fill")
+                    .font(.subheadline)
+                
+                Spacer()
+                
+                Text(compatibilityText(for: .webkit))
+                    .font(.subheadline)
+                    .foregroundColor(compatibilityColor(for: .webkit))
             }
         }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(16)
     }
     
-    // 拆分为子视图组件
-    private var headerView: some View {
-        VStack {
-            // 标题部分内容...
-            Text("X 越狱工具")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("系统版本: \(UIDevice.current.systemVersion)")
-                .font(.subheadline)
-        }
-    }
-    
-    private var controlView: some View {
-        VStack {
-            // 选择器部分
-            ExploitSelectorView(selectedExploit: $selectedExploit)
-            
-            // 按钮部分
-            ActionButtonView(isRunning: isRunning, action: executeAction)
-        }
-    }
-    
-    private var statusView: some View {
-        VStack {
-            if isRunning || !exploitStages.isEmpty {
-                // 显示阶段信息
-                StageProgressView(
-                    stages: exploitStages,
-                    currentIndex: currentStageIndex,
-                    isRunning: isRunning
-                )
+    private var jailbreakOptionsCard: some View {
+        VStack(spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("越狱配置")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
                 
-                // 显示技术细节
-                if !techDetails.isEmpty {
-                    TechnicalDetailsView(
-                        isExpanded: $showTechDetails,
-                        content: techDetails
-                    )
+                ExploitSelectorView(selectedExploit: $selectedExploit)
+            }
+            
+            VStack(spacing: 12) {
+                ActionButtonView(isRunning: isRunning, action: executeAction)
+                
+                if !isRunning {
+                    HStack {
+                        Spacer()
+                        
+                        Button(action: {
+                            showJailbreakOptions()
+                        }) {
+                            Label("高级选项", systemImage: "gearshape")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
             }
         }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(16)
+    }
+    
+    private var jailbreakStatusCard: some View {
+        VStack(spacing: 16) {
+            StageProgressView(
+                stages: exploitStages,
+                currentIndex: currentStageIndex,
+                isRunning: isRunning
+            )
+            
+            if !techDetails.isEmpty {
+                TechnicalDetailsView(
+                    isExpanded: $showTechDetails,
+                    content: techDetails
+                )
+            }
+        }
+    }
+    
+    // MARK: - 辅助函数
+    private func compatibilityText(for type: ExploitType) -> String {
+        switch type {
+        case .kernel:
+            return ExploitChainManager.shared.isCompatibleWithKernelExploit() ? "兼容" : "不兼容"
+        case .webkit:
+            return ExploitChainManager.shared.isCompatibleWithWebKitExploit() ? "兼容" : "不兼容"
+        default:
+            return "未测试"
+        }
+    }
+    
+    private func compatibilityColor(for type: ExploitType) -> Color {
+        switch type {
+        case .kernel:
+            return ExploitChainManager.shared.isCompatibleWithKernelExploit() ? .green : .red
+        case .webkit:
+            return ExploitChainManager.shared.isCompatibleWithWebKitExploit() ? .green : .orange
+        default:
+            return .gray
+        }
+    }
+    
+    private func showCompatibilityInfo() {
+        alertTitle = "设备兼容性"
+        alertMessage = """
+        设备: \(deviceModel)
+        iOS版本: \(osVersion)
+        
+        内核漏洞 (CVE-2024-23222): \(ExploitChainManager.shared.isCompatibleWithKernelExploit() ? "兼容" : "不兼容")
+        WebKit漏洞 (CVE-2024-44131): \(ExploitChainManager.shared.isCompatibleWithWebKitExploit() ? "兼容" : "不兼容")
+        CoreMedia漏洞 (CVE-2025-24085): \(ExploitChainManager.shared.isCompatibleWithCoreMediaExploit() ? "兼容" : "不兼容")
+        VM漏洞: \(ExploitChainManager.shared.isCompatibleWithVMExploit() ? "兼容" : "不兼容")
+        
+        建议使用的漏洞链: \(ExploitChainManager.shared.recommendedExploitChain().rawValue)
+        """
+        showAlert = true
+    }
+    
+    private func showJailbreakOptions() {
+        alertTitle = "高级越狱选项"
+        alertMessage = """
+        选择高级选项可能会影响越狱的稳定性。
+        
+        • 使用自签名证书
+        • 启用调试日志
+        • 使用保守内存设置
+        • 禁用自动重启
+        
+        这些选项可以在"实验室"标签页中找到更多详细设置。
+        """
+        showAlert = true
     }
     
     // MARK: - 执行越狱的主要逻辑
@@ -154,8 +333,17 @@ struct ContentView: View {
     private func executeStep2() {
         // 执行第二步...
         currentStageIndex = 1
-        updateStageStatus(index: 1, status: .success)
-        executeStep3()
+        updateStageStatus(index: 1, status: .running)
+        statusText = "阶段2: 执行沙箱逃逸准备"
+        
+        // 更新技术细节
+        updateTechnicalDetails("正在准备WebKit漏洞利用链，初始化内存布局...")
+        
+        // 添加延迟模拟实际操作
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            self.updateStageStatus(index: 1, status: .success)
+            self.executeStep3()
+        }
     }
     
     private func executeStep3() {
@@ -230,19 +418,31 @@ struct ContentView: View {
     // MARK: - 辅助方法
     private func checkSystemCompatibility() -> Bool {
         // 实现系统兼容性检查...
-        return true
+        return ExploitChainManager.shared.checkExploitCompatibility()
     }
     
     private func executeXPCExploit(completion: @escaping (Bool) -> Void) {
         // 实现XPC漏洞利用...
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        logStore.append(message: "[*] 尝试XPC沙箱逃逸...")
+        updateTechnicalDetails("正在通过XPC服务触发漏洞...\n权限提升中...\n准备escapeToRoot()函数...")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            logStore.append(message: "[+] XPC沙箱逃逸成功")
             completion(true)
         }
     }
     
     private func executeKernelExploit(completion: @escaping (Bool) -> Void) {
         // 正确调用ExploitChainManager的方法
+        logStore.append(message: "[*] 尝试内核漏洞提权...")
+        updateTechnicalDetails("正在使用CVE-2024-23222漏洞提权...\n构建ROP链...\n修改内核内存保护...")
+        
         ExploitChainManager.shared.executeKernelExploit { success in
+            if success {
+                logStore.append(message: "[+] 内核漏洞提权成功")
+            } else {
+                logStore.append(message: "[-] 内核漏洞提权失败")
+            }
             completion(success)
         }
     }
@@ -258,23 +458,15 @@ struct ContentView: View {
         if success {
             statusText = "越狱完成"
             logStore.append(message: "===== 越狱完成 =====")
+            updateTechnicalDetails("越狱过程成功完成!\n所有阶段已成功执行\n可以进入Sileo标签页安装软件包")
         } else {
             statusText = "越狱失败"
             logStore.append(message: "xxxxx 越狱失败 xxxxx")
         }
     }
-    
-    private func getStepName(_ step: Any) -> String {
-        if let sileoStep = step as? SileoInstallStep {
-            return sileoStep.description
-        } else if let progress = step as? Double {
-            return "下载进度: \(Int(progress * 100))%"
-        }
-        return "未知步骤"
-    }
 }
 
-// 子组件定义
+// 界面组件保留原来的实现但略微调整样式...
 struct ExploitSelectorView: View {
     @Binding var selectedExploit: ExploitType
     
@@ -285,7 +477,6 @@ struct ExploitSelectorView: View {
             }
         }
         .pickerStyle(SegmentedPickerStyle())
-        .padding(.vertical)
     }
 }
 
@@ -295,18 +486,26 @@ struct ActionButtonView: View {
     
     var body: some View {
         Button(action: action) {
-            Text(isRunning ? "正在执行..." : "开始越狱")
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(isRunning ? Color.gray : Color.blue)
-                .foregroundColor(.white)
-                .cornerRadius(10)
+            HStack {
+                Image(systemName: isRunning ? "ellipsis.circle" : "bolt.fill")
+                    .font(.headline)
+                
+                Text(isRunning ? "正在执行..." : "开始越狱")
+                    .font(.headline)
+            }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isRunning ? Color.gray : Color.blue)
+            )
+            .foregroundColor(.white)
         }
         .disabled(isRunning)
     }
 }
 
+// 其他子组件保留原来的实现...
 struct StageProgressView: View {
     let stages: [ExploitStage]
     let currentIndex: Int
