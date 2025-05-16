@@ -56,7 +56,7 @@ struct ContentView: View {
                 .tag(2)
             
             // 验证页面
-            SileoVerificationView()
+            SileoVerificationView(logStore: logStore)
                 .tabItem {
                     Image(systemName: "checkmark.shield.fill")
                     Text("验证")
