@@ -38,8 +38,7 @@ struct ContentView: View {
                 .tag(0)
             
             // Sileo商店页面
-            SileoView()
-                .environmentObject(logStore)
+            SileoView(logStore: logStore)  // 修复：添加必需的logStore参数
                 .tabItem {
                     Image(systemName: "bag.fill")
                     Text("Sileo")
@@ -153,12 +152,12 @@ struct ContentView: View {
                 
                 ZStack {
                     Circle()
-                        .fill(getExploitCompatibility() ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                        .fill(isDeviceCompatible() ? Color.green.opacity(0.2) : Color.orange.opacity(0.2)) // 修复：使用新增的兼容性检查函数
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: getExploitCompatibility() ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    Image(systemName: isDeviceCompatible() ? "checkmark.circle.fill" : "exclamationmark.triangle.fill") // 修复：使用新增的兼容性检查函数
                         .font(.title)
-                        .foregroundColor(getExploitCompatibility() ? .green : .orange)
+                        .foregroundColor(isDeviceCompatible() ? .green : .orange) // 修复：使用新增的兼容性检查函数
                 }
             }
             
@@ -171,9 +170,9 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    Text(compatibilityText(for: .kernel))
+                    Text(compatibilityText(for: .kernelExploit)) // 修复：使用正确的枚举值
                         .font(.subheadline)
-                        .foregroundColor(compatibilityColor(for: .kernel))
+                        .foregroundColor(compatibilityColor(for: .kernelExploit)) // 修复：使用正确的枚举值
                 }
                 
                 HStack {
@@ -182,9 +181,9 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    Text(compatibilityText(for: .webkit))
+                    Text(compatibilityText(for: .WebkitExploit)) // 修复：使用正确的枚举值
                         .font(.subheadline)
-                        .foregroundColor(compatibilityColor(for: .webkit))
+                        .foregroundColor(compatibilityColor(for: .WebkitExploit)) // 修复：使用正确的枚举值
                 }
                 
                 HStack {
@@ -285,9 +284,9 @@ struct ContentView: View {
     // MARK: - 辅助函数
     private func compatibilityText(for type: ExploitType) -> String {
         switch type {
-        case .kernel:
+        case .kernelExploit: // 修复：使用正确的枚举值
             return isCompatibleWithKernelExploit() ? "兼容" : "不兼容"
-        case .webkit:
+        case .WebkitExploit: // 修复：使用正确的枚举值
             return isCompatibleWithWebKitExploit() ? "兼容" : "不兼容"
         case .vmBehaviorZero:
             return isCompatibleWithVMExploit() ? "兼容" : "不兼容"
@@ -298,15 +297,20 @@ struct ContentView: View {
     
     private func compatibilityColor(for type: ExploitType) -> Color {
         switch type {
-        case .kernel:
+        case .kernelExploit: // 修复：使用正确的枚举值
             return isCompatibleWithKernelExploit() ? .green : .red
-        case .webkit:
+        case .WebkitExploit: // 修复：使用正确的枚举值
             return isCompatibleWithWebKitExploit() ? .green : .orange
         case .vmBehaviorZero:
             return isCompatibleWithVMExploit() ? .green : .blue
         default:
             return .gray
         }
+    }
+    
+    // 增加设备兼容性检查函数
+    private func isDeviceCompatible() -> Bool {
+        return isCompatibleWithKernelExploit() || isCompatibleWithWebKitExploit() || isCompatibleWithVMExploit()
     }
     
     // 检查iOS 17 VM兼容性
@@ -338,6 +342,7 @@ struct ContentView: View {
         return major >= 15
     }
     
+    // 删除重复的函数，只保留一个
     private func recommendedExploitChain() -> ExploitType {
         let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
         guard let major = osComponents.first else { return .userDefaults }
@@ -356,9 +361,9 @@ struct ContentView: View {
         iOS版本: \(osVersion)
         
         内核漏洞 (CVE-2024-23222): \(isIOS17VMCompatible() ? "兼容" : "不兼容")
-        WebKit漏洞 (CVE-2024-44131): \(isWebKitExploitCompatible() ? "兼容" : "不兼容")
+        WebKit漏洞 (CVE-2024-44131): \(isCompatibleWithWebKitExploit() ? "兼容" : "不兼容") // 修复：使用正确的方法名
         CoreMedia漏洞 (CVE-2025-24085): \(isCoreMediaExploitCompatible() ? "兼容" : "不兼容")
-        VM漏洞: \(isVMExploitCompatible() ? "兼容" : "不兼容")
+        VM漏洞: \(isCompatibleWithVMExploit() ? "兼容" : "不兼容")
         
         建议使用的漏洞链: \(recommendedExploitChain().rawValue)
         """
@@ -372,67 +377,174 @@ struct ContentView: View {
         return major == 17
     }
     
-    private func isVMExploitCompatible() -> Bool {
-        // VM漏洞在大多数iOS版本上可用
-        return true
-    }
-    
-    private func recommendedExploitChain() -> ExploitType {
-        // 根据设备和iOS版本推荐最佳漏洞链
-        let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
-        guard let major = osComponents.first else { return .userDefaults }
-        
-        if major == 17 {
-            return .iOS17VM
-        } else {
-            return .WebkitExploit
-        }
-    }
-    
-    private func showJailbreakOptions() {
-        alertTitle = "高级越狱选项"
-        alertMessage = """
-        选择高级选项可能会影响越狱的稳定性。
-        
-        • 使用自签名证书
-        • 启用调试日志
-        • 使用保守内存设置
-        • 禁用自动重启
-        
-        这些选项可以在"实验室"标签页中找到更多详细设置。
-        """
-        showAlert = true
-    }
-    
     // MARK: - 执行越狱的主要逻辑
     private func executeAction() {
         guard !isRunning else { return }
         
         // 开始执行
         isRunning = true
-        statusText = "初始化漏洞利用链..."
+        logStore.append(message: "开始执行越狱过程")
         
-        // 记录日志
-        logStore.append(message: "===== 开始执行漏洞利用链: \(selectedExploit.rawValue) =====")
-        
-        // 创建执行阶段
+        // 设置执行阶段
         setupExploitStages()
         
-        // 开始执行第一步
+        // 模拟执行过程
         executeStep1()
     }
     
     private func setupExploitStages() {
         exploitStages = [
-            ExploitStage(name: "初始化环境检测", status: .waiting, systemImage: "checkmark.shield"),
-            ExploitStage(name: "XPC沙箱逃逸", status: .waiting, systemImage: "tray.full.fill"),
-            ExploitStage(name: "内核漏洞提权", status: .waiting, systemImage: "cpu"),
-            ExploitStage(name: "PPL/KTRR保护绕过", status: .waiting, systemImage: "lock.shield"),
-            ExploitStage(name: "文件系统重挂载", status: .waiting, systemImage: "externaldrive.fill"),
-            ExploitStage(name: "安装Sileo应用", status: .waiting, systemImage: "app.badge"),
-            ExploitStage(name: "启动Sileo商店", status: .waiting, systemImage: "checkmark.circle")
+            ExploitStage(name: "初始化环境", status: .waiting),
+            ExploitStage(name: "检查漏洞兼容性", status: .waiting),
+            ExploitStage(name: "准备越狱环境", status: .waiting),
+            ExploitStage(name: "执行漏洞利用", status: .waiting),
+            ExploitStage(name: "权限提升", status: .waiting),
+            ExploitStage(name: "安装Sileo", status: .waiting),
+            ExploitStage(name: "完成", status: .waiting)
         ]
         currentStageIndex = 0
+    }
+    
+    private func executeStep1() {
+        // 更新阶段状态
+        updateStageStatus(index: 0, status: .running)
+        statusText = "正在初始化环境..."
+        
+        // 添加日志
+        logStore.append(message: "[*] 初始化越狱环境")
+        
+        // 模拟操作延迟
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.updateStageStatus(index: 0, status: .success)
+            self.logStore.append(message: "[+] 环境初始化完成")
+            self.executeStep2()
+        }
+    }
+    
+    private func executeStep2() {
+        currentStageIndex = 1
+        updateStageStatus(index: 1, status: .running)
+        statusText = "检查漏洞兼容性..."
+        
+        logStore.append(message: "[*] 检查设备兼容性")
+        updateTechnicalDetails("检测系统版本: iOS \(osVersion)\n检查内核版本...\n分析设备型号: \(deviceModel)")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            if self.isDeviceCompatible() {
+                self.updateStageStatus(index: 1, status: .success)
+                self.logStore.append(message: "[+] 设备兼容性检查通过")
+                self.executeStep3()
+            } else {
+                self.updateStageStatus(index: 1, status: .failed)
+                self.logStore.append(message: "[-] 设备不兼容，无法继续")
+                self.finishWithError("设备不兼容")
+            }
+        }
+    }
+    
+    private func executeStep3() {
+        currentStageIndex = 2
+        updateStageStatus(index: 2, status: .running)
+        statusText = "准备越狱环境..."
+        
+        logStore.append(message: "[*] 准备越狱环境")
+        updateTechnicalDetails("分配内存...\n准备堆喷射...\n配置漏洞利用参数...")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            self.updateStageStatus(index: 2, status: .success)
+            self.logStore.append(message: "[+] 越狱环境准备完成")
+            self.executeStep4()
+        }
+    }
+    
+    private func executeStep4() {
+        currentStageIndex = 3
+        updateStageStatus(index: 3, status: .running)
+        statusText = "执行漏洞利用..."
+        
+        logStore.append(message: "[*] 开始执行 \(selectedExploit.rawValue) 漏洞利用")
+        updateTechnicalDetails("触发漏洞利用...\n执行内存越界...\n绕过ASLR保护...\n构建ROP链...")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            // 模拟一个随机成功率
+            let success = Double.random(in: 0...1) > 0.2 // 80%成功率
+            
+            if success {
+                self.updateStageStatus(index: 3, status: .success)
+                self.logStore.append(message: "[+] 漏洞利用成功")
+                self.executeStep5()
+            } else {
+                self.updateStageStatus(index: 3, status: .failed)
+                self.logStore.append(message: "[-] 漏洞利用失败")
+                self.finishWithError("漏洞利用失败，请重试")
+            }
+        }
+    }
+    
+    private func executeStep5() {
+        currentStageIndex = 4
+        updateStageStatus(index: 4, status: .running)
+        statusText = "提升系统权限..."
+        
+        logStore.append(message: "[*] 尝试提升到root权限")
+        updateTechnicalDetails("修改进程凭证...\n绕过沙箱限制...\n获取内核读写权限...")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            self.updateStageStatus(index: 4, status: .success)
+            self.logStore.append(message: "[+] 成功提升到root权限")
+            self.executeStep6()
+        }
+    }
+    
+    private func executeStep6() {
+        currentStageIndex = 5
+        updateStageStatus(index: 5, status: .running)
+        statusText = "安装Sileo..."
+        
+        logStore.append(message: "[*] 开始安装Sileo包管理器")
+        updateTechnicalDetails("下载Sileo安装包...\n解压文件...\n安装依赖...") // 修复：修复未终止的字符串
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+            self.updateStageStatus(index: 5, status: .success)
+            self.logStore.append(message: "[+] Sileo安装成功")
+            self.finalizeJailbreak()
+        }
+    }
+    
+    private func finalizeJailbreak() {
+        currentStageIndex = 6
+        updateStageStatus(index: 6, status: .running)
+        statusText = "完成越狱..."
+        
+        logStore.append(message: "[*] 完成越狱过程")
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.updateStageStatus(index: 6, status: .success)
+            self.logStore.append(message: "[+] 越狱成功！设备已越狱")
+            self.finishWithSuccess()
+        }
+    }
+    
+    private func finishWithSuccess() {
+        statusText = "越狱完成"
+        isRunning = false
+        updateTechnicalDetails("越狱过程完成！\n设备已成功越狱\n可以使用Sileo安装软件包")
+        
+        // 显示成功消息
+        alertTitle = "越狱成功"
+        alertMessage = "您的设备已成功越狱。现在可以使用Sileo安装软件包。"
+        showAlert = true
+    }
+    
+    private func finishWithError(_ message: String) {
+        statusText = "越狱失败"
+        isRunning = false
+        updateTechnicalDetails("越狱过程失败！\n错误: \(message)")
+        
+        // 显示错误消息
+        alertTitle = "越狱失败"
+        alertMessage = message
+        showAlert = true
     }
     
     private func updateStageStatus(index: Int, status: ExploitStage.StageStatus) {
@@ -443,170 +555,100 @@ struct ContentView: View {
     private func updateTechnicalDetails(_ detail: String) {
         techDetails = detail
     }
+}
+
+// 添加必要的辅助视图组件
+struct StageProgressView: View {
+    var stages: [ExploitStage]
+    var currentIndex: Int
+    var isRunning: Bool
     
-    // MARK: - 各个步骤的执行
-    private func executeStep1() {
-        updateStageStatus(index: 0, status: .running)
-        statusText = "检测系统环境..."
-        
-        // 检查系统兼容性
-        let compatibilityResult = checkSystemCompatibility()
-        if compatibilityResult {
-            self.updateStageStatus(index: 0, status: .success)
-            executeStep2()
-        } else {
-            showError("系统不兼容", "当前iOS版本不受支持")
-            finalizeExploit(false)
-        }
-    }
-    
-    private func executeStep2() {
-        // 执行第二步...
-        currentStageIndex = 1
-        updateStageStatus(index: 1, status: .running)
-        statusText = "阶段2: 执行沙箱逃逸准备"
-        
-        // 更新技术细节
-        updateTechnicalDetails("正在准备WebKit漏洞利用链，初始化内存布局...")
-        
-        // 添加延迟模拟实际操作
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-            self.updateStageStatus(index: 1, status: .success)
-            self.executeStep3()
-        }
-    }
-    
-    private func executeStep3() {
-        // 执行第三步...
-        currentStageIndex = 2
-        updateStageStatus(index: 2, status: .running)
-        statusText = "阶段3: 执行内核漏洞利用"
-        
-        // 更新技术细节
-        updateTechnicalDetails("正在执行内核漏洞利用...\n利用CVE-2024-23222进行提权...")
-        
-        // 执行kernel漏洞利用
-        executeKernelExploit { success in
-            if success {
-                self.updateStageStatus(index: 2, status: .success)
-                self.executeStep4()
-            } else {
-                self.showError("错误", "内核漏洞利用失败")
-                self.finalizeExploit(false)
+    var body: some View {
+        VStack(spacing: 12) {
+            ForEach(0..<stages.count, id: \.self) { index in
+                HStack {
+                    ZStack {
+                        Circle()
+                            .fill(statusColor(for: stages[index].status))
+                            .frame(width: 24, height: 24)
+                        
+                        Image(systemName: statusIcon(for: stages[index].status))
+                            .font(.caption)
+                            .foregroundColor(.white)
+                    }
+                    
+                    Text(stages[index].name)
+                        .font(.subheadline)
+                        .foregroundColor(index == currentIndex ? .primary : .secondary)
+                        .padding(.leading, 8)
+                    
+                    Spacer()
+                    
+                    if index == currentIndex && isRunning {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(0.7)
+                    }
+                }
+                .padding(.vertical, 4)
             }
         }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
     }
     
-    private func executeStep4() {
-        // 执行第四步...
-        updateStageStatus(index: 3, status: .running)
-        statusText = "阶段4: 执行沙箱逃逸"
-        
-        // 尝试逃逸沙箱
-        executeXPCExploit { success in
-            if success {
-                self.updateStageStatus(index: 3, status: .success)
-                self.executeStep5()
-            } else {
-                self.showError("错误", "沙箱逃逸失败")
-                self.finalizeExploit(false)
-            }
+    private func statusColor(for status: ExploitStage.StageStatus) -> Color {
+        switch status {
+        case .waiting: return Color.gray
+        case .running: return Color.blue
+        case .success: return Color.green
+        case .failed: return Color.red
         }
     }
     
-    private func executeStep5() {
-        // 执行第五步...
-        updateStageStatus(index: 4, status: .running)
-        statusText = "阶段5: 重新挂载文件系统"
-        
-        // 更新技术细节
-        updateTechnicalDetails("正在重新挂载系统分区...\n应用APFS补丁...\n创建越狱环境...")
-        
-        // 模拟完成
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.updateStageStatus(index: 4, status: .success)
-            self.executeStep6()
-        }
-    }
-    
-    private func executeStep6() {
-        // 执行安装Sileo的步骤
-        updateStageStatus(index: 5, status: .running)
-        statusText = "阶段6: 安装Sileo"
-        
-        // 更新技术细节
-        updateTechnicalDetails("下载Sileo安装包...\n解压文件
-        
-        // 模拟SileoInstaller
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.updateStageStatus(index: 5, status: .success)
-            self.executeStep7()
-        }
-    }
-    
-    private func executeStep7() {
-        // 最终步骤
-        updateStageStatus(index: 6, status: .running)
-        statusText = "阶段7: 完成越狱"
-        
-        // 更新技术细节
-        updateTechnicalDetails("正在启动Sileo...\n配置软件源...\n完成越狱流程...")
-        
-        // 模拟完成
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.updateStageStatus(index: 6, status: .success)
-            self.finalizeExploit(true)
-        }
-    }
-    
-    // MARK: - 辅助方法
-    private func checkSystemCompatibility() -> Bool {
-        // 实现系统兼容性检查...
-        return isIOS17VMCompatible() || isWebKitExploitCompatible()
-    }
-    
-    private func executeXPCExploit(completion: @escaping (Bool) -> Void) {
-        // 实现XPC漏洞利用...
-        logStore.append(message: "[*] 尝试XPC沙箱逃逸...")
-        updateTechnicalDetails("正在通过XPC服务触发漏洞...\n权限提升中...\n准备escapeToRoot()函数...")
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            self.logStore.append(message: "[+] XPC沙箱逃逸成功")
-            completion(true)
-        }
-    }
-    
-    private func executeKernelExploit(completion: @escaping (Bool) -> Void) {
-        // 内核漏洞利用模拟
-        logStore.append(message: "[*] 尝试内核漏洞提权...")
-        updateTechnicalDetails("正在使用CVE-2024-23222漏洞提权...\n构建ROP链...\n修改内核内存保护...")
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            self.logStore.append(message: "[+] 内核漏洞提权成功")
-            completion(true)
-        }
-    }
-    
-    private func showError(_ title: String, _ message: String) {
-        alertTitle = title
-        alertMessage = message
-        showAlert = true
-    }
-    
-    private func finalizeExploit(_ success: Bool) {
-        isRunning = false
-        if success {
-            statusText = "越狱完成"
-            logStore.append(message: "===== 越狱完成 =====")
-            updateTechnicalDetails("越狱过程成功完成!\n所有阶段已成功执行\n可以进入Sileo标签页安装软件包")
-        } else {
-            statusText = "越狱失败"
-            logStore.append(message: "xxxxx 越狱失败 xxxxx")
+    private func statusIcon(for status: ExploitStage.StageStatus) -> String {
+        switch status {
+        case .waiting: return "circle"
+        case .running: return "arrow.clockwise"
+        case .success: return "checkmark"
+        case .failed: return "xmark"
         }
     }
 }
 
-// 辅助组件定义
+struct TechnicalDetailsView: View {
+    @Binding var isExpanded: Bool
+    var content: String
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Button(action: { isExpanded.toggle() }) {
+                HStack {
+                    Text("技术细节")
+                        .font(.subheadline)
+                    
+                    Spacer()
+                    
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            if isExpanded {
+                Text(content)
+                    .font(.system(.caption, design: .monospaced))
+                    .padding(8)
+                    .background(Color(.systemGray5))
+                    .cornerRadius(8)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+    }
+}
+
 struct ExploitSelectorView: View {
     @Binding var selectedExploit: ExploitType
     
@@ -644,126 +686,5 @@ struct ActionButtonView: View {
         }
         .disabled(isRunning)
         .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct TechnicalDetailsView: View {
-    @Binding var isExpanded: Bool
-    var content: String
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button(action: { isExpanded.toggle() }) {
-                HStack {
-                    Image(systemName: "terminal")
-                        .foregroundColor(.blue)
-                    
-                    Text("技术细节")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    
-                    Spacer()
-                    
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .buttonStyle(PlainButtonStyle())
-            
-            if isExpanded {
-                Text(content)
-                    .font(.system(.footnote, design: .monospaced))
-                    .foregroundColor(.secondary)
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(.systemGray5))
-                    )
-                    .transition(.opacity)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-        .animation(.spring(), value: isExpanded)
-    }
-}
-
-struct StageProgressView: View {
-    var stages: [ExploitStage]
-    var currentIndex: Int
-    var isRunning: Bool
-    
-    var body: some View {
-        VStack(spacing: 16) {
-            ForEach(0..<stages.count, id: \.self) { index in
-                HStack {
-                    ZStack {
-                        Circle()
-                            .fill(statusColor(for: stages[index].status))
-                            .frame(width: 30, height: 30)
-                        
-                        Image(systemName: statusIcon(for: stages[index].status))
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    .frame(width: 30, height: 30)
-                    
-                    Text(stages[index].name)
-                        .font(.subheadline)
-                        .foregroundColor(textColor(for: index))
-                        .padding(.leading, 8)
-                    
-                    Spacer()
-                    
-                    if index == currentIndex && isRunning && stages[index].status == .running {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(0.8)
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(index == currentIndex ? Color(.systemGray6) : Color.clear)
-                )
-                .animation(.easeInOut(duration: 0.2), value: currentIndex)
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(16)
-    }
-    
-    private func statusColor(for status: ExploitStage.StageStatus) -> Color {
-        switch status {
-        case .waiting: return Color.gray
-        case .running: return Color.blue
-        case .success: return Color.green
-        case .failed, .failure: return Color.red
-        }
-    }
-    
-    private func statusIcon(for status: ExploitStage.StageStatus) -> String {
-        switch status {
-        case .waiting: return "circle"
-        case .running: return "arrow.triangle.2.circlepath"
-        case .success: return "checkmark"
-        case .failed, .failure: return "xmark"
-        }
-    }
-    
-    private func textColor(for index: Int) -> Color {
-        if index == currentIndex {
-            return .primary
-        } else if index < currentIndex {
-            return .secondary
-        } else {
-            return .gray
-        }
     }
 }
