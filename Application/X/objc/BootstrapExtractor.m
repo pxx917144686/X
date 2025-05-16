@@ -179,31 +179,25 @@ bool extract_bootstrap_to_jb(void) {
     return [BootstrapExtractor extractBootstrap:bootstrapPath toJBPath:jbPath];
 }
 
+// 添加一个辅助函数获取 IOKit 主端口（与 KernelExploit.m 中类似）
+static mach_port_t IOKitGetMainPort(void) {
+    // 在 iOS 上直接使用 MACH_PORT_NULL 替代 kIOMasterPortDefault
+    return MACH_PORT_NULL;
+}
+
+// 修改 exploit_iokit_cve_2023_42824 函数中使用 kIOMasterPortDefault 的地方
 bool exploit_iokit_cve_2023_42824(void) {
     NSLog(@"[*] 尝试IOKit CVE-2023-42824漏洞...");
     
-    // 使用正确声明的IOServiceMatching函数
-    CFDictionaryRef matchingDict = IOServiceMatching("IOPCIDevice");
-    if (!matchingDict) {
-        NSLog(@"[-] 无法创建匹配字典");
-        return false;
-    }
+    // 使用 MACH_PORT_NULL 替代 kIOMasterPortDefault
+    io_service_t service = IOServiceGetMatchingService(MACH_PORT_NULL,
+                           IOServiceMatching("IOPCIDevice"));
+    if (service == MACH_PORT_NULL) return false;
     
-    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, matchingDict);
-    if (service == MACH_PORT_NULL) {
-        NSLog(@"[-] 无法获取服务");
-        return false;
-    }
-    
-    io_connect_t connect;
-    // 使用系统定义的宏 mach_task_self()，不再需要函数声明
+    io_connect_t connect = MACH_PORT_NULL;
     kern_return_t kr = IOServiceOpen(service, mach_task_self(), 0, &connect);
     IOObjectRelease(service);
-    
-    if (kr != KERN_SUCCESS) {
-        NSLog(@"[-] 无法打开服务: 0x%x", kr);
-        return false;
-    }
+    if (kr != KERN_SUCCESS) return false;
     
     // 尝试触发漏洞
     uint64_t outBuffer[32] = {0};
