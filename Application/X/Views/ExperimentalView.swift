@@ -587,7 +587,8 @@ struct AdvancedExploitConfigView: View {
         isProcessing = true
         logStore.append(message: "高级文件修改: 开始执行组合漏洞链，目标文件数量: \(selectedFiles.count)")
         
-        ExploitChainManager.shared.logStore = logStore
+        LogStore.shared.append(message: "开始执行实验功能")
+        
         ExploitChainManager.shared.executeFullExploitChain { success in
             DispatchQueue.main.async {
                 self.status = success ? "组合漏洞链执行成功" : "组合漏洞链执行失败"
