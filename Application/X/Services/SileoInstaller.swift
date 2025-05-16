@@ -1,16 +1,6 @@
 import Foundation
 import UIKit
 
-enum SileoInstallStep {
-    case extractingBootstrap
-    case downloadingSileo
-    case extractingPackage
-    case configuringPermissions
-    case registeringURLScheme
-    case setupAptSources
-    case installDependencies
-}
-
 class SileoInstaller {
     static let shared = SileoInstaller()
     
