@@ -170,9 +170,9 @@ struct ContentView: View {
                     
                     Spacer()
                     
-                    Text(compatibilityText(for: .kernelExploit)) // 修复：使用正确的枚举值
+                    Text(compatibilityText(for: .kernelTypeConfusion)) // 使用正确的枚举值
                         .font(.subheadline)
-                        .foregroundColor(compatibilityColor(for: .kernelExploit)) // 修复：使用正确的枚举值
+                        .foregroundColor(compatibilityColor(for: .kernelTypeConfusion)) // 使用正确的枚举值
                 }
                 
                 HStack {
@@ -394,13 +394,13 @@ struct ContentView: View {
     
     private func setupExploitStages() {
         exploitStages = [
-            ExploitStage(name: "初始化环境", status: .waiting),
-            ExploitStage(name: "检查漏洞兼容性", status: .waiting),
-            ExploitStage(name: "准备越狱环境", status: .waiting),
-            ExploitStage(name: "执行漏洞利用", status: .waiting),
-            ExploitStage(name: "权限提升", status: .waiting),
-            ExploitStage(name: "安装Sileo", status: .waiting),
-            ExploitStage(name: "完成", status: .waiting)
+            ExploitStage(name: "初始化环境", status: .waiting, systemImage: "gear"),
+            ExploitStage(name: "检查漏洞兼容性", status: .waiting, systemImage: "checkmark.shield"),
+            ExploitStage(name: "准备越狱环境", status: .waiting, systemImage: "hammer"),
+            ExploitStage(name: "执行漏洞利用", status: .waiting, systemImage: "bolt"),
+            ExploitStage(name: "权限提升", status: .waiting, systemImage: "lock.open"),
+            ExploitStage(name: "安装Sileo", status: .waiting, systemImage: "cube.box"),
+            ExploitStage(name: "完成", status: .waiting, systemImage: "checkmark.circle")
         ]
         currentStageIndex = 0
     }
@@ -603,7 +603,7 @@ struct StageProgressView: View {
         case .waiting: return Color.gray
         case .running: return Color.blue
         case .success: return Color.green
-        case .failed: return Color.red
+        case .failed, .failure: return Color.red
         }
     }
     
@@ -612,7 +612,7 @@ struct StageProgressView: View {
         case .waiting: return "circle"
         case .running: return "arrow.clockwise"
         case .success: return "checkmark"
-        case .failed: return "xmark"
+        case .failed, .failure: return "xmark"
         }
     }
 }
@@ -687,4 +687,20 @@ struct ActionButtonView: View {
         .disabled(isRunning)
         .buttonStyle(PlainButtonStyle())
     }
+}
+
+private func showJailbreakOptions() {
+    alertTitle = "越狱高级选项"
+    alertMessage = """
+    越狱模式: \(selectedExploit.rawValue)
+    
+    可配置选项:
+    - 绕过类型: 自动选择
+    - 重挂载根文件系统: 启用
+    - 安装Sileo: 启用
+    - 添加默认源: 启用
+    
+    这些选项在当前版本中不可更改。未来版本将支持自定义配置。
+    """
+    showAlert = true
 }
