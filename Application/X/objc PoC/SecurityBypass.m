@@ -91,17 +91,3 @@ bool bypass_ppl_via_hardware_method(void) {
     NSLog(@"[-] 硬件辅助绕过失败");
     return false;
 }
-
-// 文件系统重新挂载为读写
-bool remount_rootfs_as_rw(void) {
-    NSLog(@"[*] 尝试将根文件系统重新挂载为读写");
-    
-    // 此函数在真实环境中需要实现文件系统重挂载的逻辑
-    if (!test_elevated_privileges()) {
-        NSLog(@"[-] 没有足够权限执行重挂载");
-        return false;
-    }
-    
-    NSLog(@"[+] 重新挂载文件系统成功");
-    return true;
-}
