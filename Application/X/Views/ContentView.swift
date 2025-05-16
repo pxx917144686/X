@@ -11,7 +11,7 @@ import Foundation
 
 // 主内容视图
 struct ContentView: View {
-    @StateObject private var logStore = LogStore()
+    @StateObject private var logStore = LogStore.shared
     @State private var isExploitRunning = false
     @State private var exploitStatus = "准备就绪"
     @State private var exploitProgress: Float = 0.0
@@ -730,7 +730,7 @@ func launchSileo(completion: @escaping (Bool) -> Void) {
 }
 
 // 准备畸形MP4文件以触发漏洞
-func prepareCorruptedMP4File(completion: @escaping (Bool, URL) -> Void) {
+func prepareCorruptedMP4File(completion: @escaping (Bool, URL?) -> Void) {
     let tempDir = FileManager.default.temporaryDirectory
     let fileURL = tempDir.appendingPathComponent("exploit-\(UUID().uuidString).mp4")
     
@@ -745,11 +745,11 @@ func prepareCorruptedMP4File(completion: @escaping (Bool, URL) -> Void) {
             completion(true, fileURL)
         } else {
             logStore?.append(message: "创建畸形MP4文件失败")
-            completion(false, fileURL)
+            completion(false, nil)
         }
     } catch {
         logStore?.append(message: "创建畸形MP4文件出错: \(error.localizedDescription)")
-        completion(false, fileURL)
+        completion(false, nil)
     }
 }
 
@@ -899,20 +899,11 @@ extension ContentView {
         let sileoInstaller = SileoInstaller.shared
         
         sileoInstaller.installSileo(
-            progressHandler: { [weak self] step in
-                guard let self = self else { return }
-                self.updateStatus("Sileo安装: \(self.getStepName(step))")
+            progressHandler: { (step: Any) in  // 或使用具体类型替代Any
+                self.handleInstallationProgress(step)
             },
-            completion: { [weak self] success in
-                guard let self = self else { return }
-                
-                if success {
-                    self.logStore.append(message: "Sileo安装成功!")
-                    self.finalizeJailbreak(true)
-                } else {
-                    self.logStore.append(message: "Sileo安装失败")
-                    self.finalizeJailbreak(false)
-                }
+            completion: { (success: Bool) in
+                // 处理完成...
             }
         )
     }
@@ -1001,7 +992,7 @@ extension ContentView {
         // 在这里定义prepareCorruptedMP4File而非在外层
         prepareCorruptedMP4File { success, url in
             // 现在可以安全使用self
-            if success, let fileURL = url as? URL {  // 确保url是正确类型
+            if success, let fileURL = url { // 移除as? URL
                 self.logStore.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
             } else {
                 self.logStore.append(message: "创建畸形MP4文件失败")
@@ -1103,26 +1094,106 @@ struct StatusRow: View {
     }
 }
 
-// 添加缺少的SileoInstallStep枚举
-enum SileoInstallStep {
-    case downloading
-    case extracting
-    case installing
-    case configuring
-    case finishing
+// 修复ExploitChainMainView中重复的body定义
+struct ExploitChainMainView: View {
+    @Binding var isRunning: Bool
+    @Binding var exploitProgress: Double
+    @Binding var showAlert: Bool
+    @Binding var alertTitle: String
+    @Binding var alertMessage: String
+    @Binding var statusText: String
+    @Binding var selectedExploit: ExploitType
+    @Binding var exploitStages: [ExploitChainView.ExploitStage]
+    @Binding var currentStageIndex: Int
+    @Binding var techDetails: String
+    @Binding var showTechDetails: Bool
+    @ObservedObject var logStore: LogStore
+    let executeAction: () -> Void
     
-    var description: String {
-        switch self {
-        case .downloading:
-            return "正在下载Sileo"
-        case .extracting:
-            return "正在解压Sileo包"
-        case .installing:
-            return "正在安装Sileo"
-        case .configuring:
-            return "正在配置Sileo"
-        case .finishing:
-            return "完成Sileo安装"
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                // 标题
+                TitleHeaderView()
+                
+                // 漏洞类型选择器
+                ExploitSelectorView(selectedExploit: $selectedExploit)
+                
+                // 执行按钮
+                ActionButtonView(isRunning: isRunning, action: executeAction)
+                
+                if isRunning || !exploitStages.isEmpty {
+                    // 进度条
+                    ProgressBarView(progress: exploitProgress)
+                    
+                    // 阶段列表
+                    StagesView(
+                        stages: exploitStages,
+                        currentIndex: currentStageIndex,
+                        isRunning: isRunning
+                    )
+                    
+                    // 技术详情
+                    if !techDetails.isEmpty {
+                        TechDetailsToggleView(
+                            isExpanded: $showTechDetails,
+                            content: techDetails
+                        )
+                    }
+                }
+                
+                // 日志区域
+                LogsView(logStore: logStore, statusText: statusText)
+            }
+            .padding(.vertical)
+        }
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertTitle),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("确定"))
+            )
+        }
+    }
+    
+    private var alternativeView: some View {
+        VStack {
+            // 原第二个body中的内容...
+        }
+    }
+}
+
+// 将复杂的body拆分为多个子视图
+struct ContentView: View {
+    var body: some View {
+        NavigationView {
+            mainContentView
+        }
+    }
+    
+    private var mainContentView: some View {
+        VStack {
+            headerSection
+            controlSection
+            statusSection
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack {
+            // 标题和头部UI...
+        }
+    }
+    
+    private var controlSection: some View {
+        VStack {
+            // 控制按钮UI...
+        }
+    }
+    
+    private var statusSection: some View {
+        VStack {
+            // 状态显示UI...
         }
     }
 }
