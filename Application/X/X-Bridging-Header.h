@@ -13,10 +13,10 @@
 #import <mach/vm_map.h>
 #import <mach/vm_behavior.h>
 
-// 删除VM_BEHAVIOR_DEFAULT的重定义，因为它已经在系统头文件中定义
-// #define VM_BEHAVIOR_DEFAULT 0   <-- 注释掉或删除这行
+// 删除对已有常量的重定义
+// #define VM_BEHAVIOR_DEFAULT 0  // 移除这行，使用系统定义的常量
 
-// 可以定义其他常量
+// 自定义常量和宏
 #define VM_BEHAVIOR_ZERO_WIRED 7
 
 // 声明 mach_vm_behavior_set 函数
