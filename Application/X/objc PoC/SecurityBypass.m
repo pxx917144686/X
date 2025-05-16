@@ -27,10 +27,15 @@ bool connect_xpc_service(const char* serviceName) {
     xpc_dictionary_set_string(message, "operation", "test");
     
     xpc_object_t reply = xpc_connection_send_message_with_reply_sync(connection, message);
-    xpc_release(message);
+    
+    // 在ARC模式下不需要显式调用xpc_release
+    // xpc_release(message);
     
     bool success = (xpc_get_type(reply) == XPC_TYPE_DICTIONARY);
-    xpc_release(reply);
+    
+    // 在ARC模式下不需要显式调用xpc_release
+    // xpc_release(reply);
+    
     xpc_connection_cancel(connection);
     
     if (success) {
