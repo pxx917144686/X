@@ -7,32 +7,6 @@
 
 import SwiftUI
 
-struct LogView: View {
-    @ObservedObject var logStore = LogStore.shared
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
-                // 确保LogStore有正确的属性名
-                ForEach(logStore.logs, id: \.self) { message in
-                    Text(message)
-                        .font(.system(.footnote, design: .monospaced))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .navigationTitle("日志")
-        .toolbar {
-            Button("清除") {
-                logStore.clear()
-            }
-        }
-    }
-}
-
-// 添加 LogsView 定义
 struct LogsView: View {
     var logStore: LogStore
     var statusText: String
@@ -59,10 +33,11 @@ struct LogsView: View {
             
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(logStore.logs, id: \.id) { log in
-                        Text(log.message)
+                    // 修正ForEach的使用方式，logs是[String]类型
+                    ForEach(0..<logStore.logs.count, id: \.self) { index in
+                        Text(logStore.logs[index])
                             .font(.system(.footnote, design: .monospaced))
-                            .foregroundColor(getLogColor(log.message))
+                            .foregroundColor(getLogColor(logStore.logs[index]))
                             .padding(.vertical, 2)
                     }
                 }
@@ -101,5 +76,25 @@ struct LogsView: View {
         } else {
             return .primary
         }
+    }
+}
+
+// 添加一个简单的LogView用于实验视图
+struct LogView: View {
+    var logStore: LogStore
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(0..<logStore.logs.count, id: \.self) { index in
+                    Text(logStore.logs[index])
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .background(Color.black.opacity(0.05))
+        .cornerRadius(8)
     }
 }
