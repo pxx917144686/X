@@ -7,6 +7,7 @@
 
 import SwiftUI
 import AVFoundation
+import Foundation
 
 // 主内容视图
 struct ContentView: View {
@@ -307,47 +308,12 @@ struct ExploitChainView: View {
         // 使用Dopamine风格的漏洞链
         // 1. 完整漏洞链执行
         ExploitChainManager.shared.executeFullExploitChain { success in
-            guard success else {
-                self.showFailure(stage: "漏洞利用链")
-                return
+            // 直接使用self，不需要weak
+            if success {
+                self.logStore.append(message: "完整利用链执行成功")
+            } else {
+                self.logStore.append(message: "完整利用链执行失败")
             }
-            
-            self.logStore.append(message: "漏洞利用链完成，准备安装Sileo")
-            self.updateStageStatus(index: 5, status: .running)
-            self.statusText = "Sileo安装准备中..."
-            
-            // 2. 安装Sileo
-            SileoInstaller.shared.installSileo(
-                progressHandler: { step in
-                    DispatchQueue.main.async {
-                        self.statusText = "Sileo安装: \(self.getStepName(step))"
-                    }
-                },
-                completion: { success in
-                    guard success else {
-                        self.showFailure(stage: "Sileo安装")
-                        return
-                    }
-                    
-                    self.updateStageStatus(index: 5, status: .success)
-                    self.updateStageStatus(index: 6, status: .running)
-                    self.statusText = "启动Sileo中..."
-                    
-                    // 3. 启动Sileo
-                    SileoInstaller.shared.launchSileo { launched in
-                        DispatchQueue.main.async {
-                            self.updateStageStatus(index: 6, status: launched ? .success : .failed)
-                            self.alertTitle = launched ? "成功" : "部分成功"
-                            self.alertMessage = launched ? 
-                                              "漏洞利用成功，Sileo已安装并启动" : 
-                                              "漏洞利用成功，Sileo已安装但未能启动"
-                            self.showAlert = true
-                            self.isRunning = false
-                            self.exploitProgress = 1.0
-                        }
-                    }
-                }
-            )
         }
     }
     
@@ -1020,15 +986,12 @@ extension ContentView {
     func executeFullExploitChain() {
         logStore.append(message: "开始执行完整漏洞利用链...")
         
-        ExploitChainManager.shared.executeFullExploitChain { [weak self] success in
-            guard let self = self else { return }
-            
+        ExploitChainManager.shared.executeFullExploitChain { success in
+            // 直接使用self，不需要weak
             if success {
-                self.logStore.append(message: "漏洞利用链执行成功，准备下载Sileo")
-                self.downloadSileo()
+                self.logStore.append(message: "完整利用链执行成功")
             } else {
-                self.logStore.append(message: "漏洞利用链执行失败")
-                // 可以在这里显示失败UI反馈
+                self.logStore.append(message: "完整利用链执行失败")
             }
         }
     }
@@ -1107,6 +1070,59 @@ extension ExploitChainMainView {
     }
     
     private var statusView: some View {
-        // 状态显示相关代码
+        VStack(alignment: .leading, spacing: 8) {
+            Text("越狱状态")
+                .font(.headline)
+            
+            Group {
+                StatusRow(title: "XPC漏洞", success: ExploitChainManager.shared.xpcExploitSuccess)
+                StatusRow(title: "内核漏洞", success: ExploitChainManager.shared.kernelExploitSuccess)
+                StatusRow(title: "PPL绕过", success: ExploitChainManager.shared.pplBypassSuccess)
+                StatusRow(title: "文件系统重新挂载", success: ExploitChainManager.shared.fsRemountSuccess)
+            }
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .shadow(radius: 1)
+    }
+}
+
+// 定义辅助视图组件
+struct StatusRow: View {
+    let title: String
+    let success: Bool
+    
+    var body: some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Image(systemName: success ? "checkmark.circle.fill" : "circle")
+                .foregroundColor(success ? .green : .gray)
+        }
+    }
+}
+
+// 添加缺少的SileoInstallStep枚举
+enum SileoInstallStep {
+    case downloading
+    case extracting
+    case installing
+    case configuring
+    case finishing
+    
+    var description: String {
+        switch self {
+        case .downloading:
+            return "正在下载Sileo"
+        case .extracting:
+            return "正在解压Sileo包"
+        case .installing:
+            return "正在安装Sileo"
+        case .configuring:
+            return "正在配置Sileo"
+        case .finishing:
+            return "完成Sileo安装"
+        }
     }
 }
