@@ -44,4 +44,10 @@ bool bypass_kpp_protection(void);
 bool bypass_ppl_via_hardware_method(void);
 bool exploit_iokit_cve_2023_42824(void);
 
+// 添加文件系统工具函数声明
+#import "objc/FilesystemUtils.h"
+
+// 确保能访问 BootstrapExtractor 
+#import "objc/BootstrapExtractor.h"
+
 #endif /* X_Bridging_Header_h */
