@@ -62,4 +62,10 @@ bool exploit_avevideo_encoder_enhanced(void);
 bool exploit_iosurface_blastdoor_chain(void);
 bool exploit_coremedia_17_6(void);
 
+// 确保已添加以下行
+#import "objc PoC/KernelExploit.h"
+
+// 或者直接在桥接头文件中声明函数
+bool verify_real_jailbreak_status(void);
+
 #endif /* X_Bridging_Header_h */
