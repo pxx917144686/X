@@ -13,10 +13,12 @@ struct LogView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                // 使用logs而不是messages
+                // 使用logs属性而不是messages
                 ForEach(logStore.logs, id: \.self) { message in
                     Text(message)
                         .font(.system(.footnote, design: .monospaced))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
