@@ -13,27 +13,27 @@ bool trigger_kernel_exploit(void);
 // BootstrapExtractor.m
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <mach/mach.h>
 #import "BootstrapExtractor.h"
 #import <spawn.h>
 #import <sys/wait.h>
+#import <CoreFoundation/CoreFoundation.h>
 
-// 全局变量声明
-static bool g_has_kernel_access = false;
-static uint64_t g_kernel_base = 0;
-
-// IOKit 类型声明
-typedef mach_port_t io_service_t;
-typedef mach_port_t io_connect_t;
+// IOKit 声明
+typedef struct __IOService *io_service_t;
+typedef struct __IOConnect *io_connect_t;
+typedef mach_port_t io_object_t;
+typedef io_object_t io_registry_entry_t;
+typedef UInt32 IOOptionBits;
 extern const mach_port_t kIOMasterPortDefault;
 
 // IOKit 函数声明
-extern io_service_t IOServiceGetMatchingService(mach_port_t, CFDictionaryRef);
-extern kern_return_t IOServiceOpen(io_service_t, task_port_t, uint32_t, io_connect_t*);
-extern kern_return_t IOServiceClose(io_connect_t);
-extern kern_return_t IOObjectRelease(io_service_t);
+extern CFMutableDictionaryRef IOServiceMatching(const char *name);
+extern io_service_t IOServiceGetMatchingService(mach_port_t masterPort, CFDictionaryRef matching);
+extern kern_return_t IOServiceOpen(io_service_t service, task_port_t owningTask, uint32_t type, io_connect_t *connect);
+extern kern_return_t IOServiceClose(io_connect_t connect);
+extern kern_return_t IOObjectRelease(io_object_t object);
 extern kern_return_t IOConnectCallMethod(
-    mach_port_t connection,
+    io_connect_t connection,
     uint32_t selector,
     const uint64_t *input,
     uint32_t inputCnt,
@@ -44,13 +44,17 @@ extern kern_return_t IOConnectCallMethod(
     void *outputStruct,
     size_t *outputStructCnt);
 
-// 声明缺少的漏洞利用函数
+// 全局变量
+static bool g_has_kernel_access = false;
+static uint64_t g_kernel_base = 0;
+
+// 声明函数原型
 bool exploit_method_ios17_specific(void);
 bool exploit_method_ion_port_race(void);
 bool exploit_method_macho_parser(void);
 bool exploit_method_type_confusion(void);
 
-// 替代 system() 函数执行命令的函数
+// 替代 system() 的安全函数
 int execCommand(const char* cmd, char* const* args) {
     pid_t pid;
     int status;
@@ -67,7 +71,7 @@ int execCommand(const char* cmd, char* const* args) {
     return status;
 }
 
-// 设置文件权限
+// 设置权限辅助函数
 BOOL setPermissions(NSString *path, int mode) {
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSDictionary *attributes = @{NSFilePosixPermissions: @(mode)};
@@ -75,34 +79,32 @@ BOOL setPermissions(NSString *path, int mode) {
     
     BOOL success = [fileManager setAttributes:attributes ofItemAtPath:path error:&error];
     if (!success) {
-        NSLog(@"Failed to set permissions for %@: %@", path, error.localizedDescription);
+        NSLog(@"设置权限失败 %@: %@", path, error.localizedDescription);
     }
     return success;
 }
 
 @interface BootstrapExtractor : NSObject
-
 + (BOOL)extractBootstrap:(NSString *)bootstrapPath toJBPath:(NSString *)jbPath;
 + (BOOL)setPermissionsForDirectory:(NSString *)dirPath mode:(int)mode;
 + (BOOL)kernelHack;
-
 @end
 
 @implementation BootstrapExtractor
 
 + (BOOL)extractBootstrap:(NSString *)bootstrapPath toJBPath:(NSString *)jbPath {
-    NSLog(@"Extracting bootstrap from %@ to %@", bootstrapPath, jbPath);
+    NSLog(@"正在从 %@ 解压至 %@", bootstrapPath, jbPath);
     
-    // 使用 posix_spawn 替代 NSTask
+    // 使用 posix_spawn 执行 tar 命令
     char *args[] = {"/usr/bin/tar", "-xf", (char *)[bootstrapPath UTF8String], "-C", (char *)[jbPath UTF8String], NULL};
     int result = execCommand("/usr/bin/tar", args);
     
     if (result != 0) {
-        NSLog(@"Failed to extract bootstrap: %d", result);
+        NSLog(@"解压失败: %d", result);
         return NO;
     }
     
-    // 设置权限 (替代 system() 调用)
+    // 设置权限
     NSArray *pathsToChmod = @[
         [jbPath stringByAppendingString:@"/usr/bin"],
         [jbPath stringByAppendingString:@"/bin"],
@@ -111,7 +113,7 @@ BOOL setPermissions(NSString *path, int mode) {
     
     for (NSString *path in pathsToChmod) {
         if (![self setPermissionsForDirectory:path mode:0755]) {
-            NSLog(@"Failed to set permissions for %@", path);
+            NSLog(@"设置权限失败: %@", path);
             return NO;
         }
     }
@@ -121,21 +123,21 @@ BOOL setPermissions(NSString *path, int mode) {
 
 + (BOOL)setPermissionsForDirectory:(NSString *)dirPath mode:(int)mode {
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSError *error = nil;
     
     // 设置目录本身的权限
     if (!setPermissions(dirPath, mode)) {
         return NO;
     }
     
-    // 获取目录内容
+    // 设置目录内容的权限
+    NSError *error = nil;
     NSArray *contents = [fileManager contentsOfDirectoryAtPath:dirPath error:&error];
+    
     if (error) {
-        NSLog(@"Error listing directory %@: %@", dirPath, error.localizedDescription);
+        NSLog(@"读取目录内容失败 %@: %@", dirPath, error.localizedDescription);
         return NO;
     }
     
-    // 设置每个文件的权限
     for (NSString *item in contents) {
         NSString *fullPath = [dirPath stringByAppendingPathComponent:item];
         if (!setPermissions(fullPath, mode)) {
@@ -147,48 +149,7 @@ BOOL setPermissions(NSString *path, int mode) {
 }
 
 + (BOOL)kernelHack {
-    NSLog(@"Attempting kernel hack...");
-    
-    // 获取服务
-    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault,
-        CFDictionaryCreateMutable(kCFAllocatorDefault, 0, NULL, NULL));
-    
-    if (service == MACH_PORT_NULL) return NO;
-    
-    // 打开连接
-    io_connect_t connect;
-    kern_return_t kr = IOServiceOpen(service, mach_task_self(), 0, &connect);
-    IOObjectRelease(service);
-    
-    if (kr != KERN_SUCCESS) {
-        NSLog(@"Failed to open service: 0x%x", kr);
-        return NO;
-    }
-    
-    uint64_t scalarI_64[16];
-    uint32_t scalarO_32 = 1;
-    uint64_t scalarO_64[16];
-    
-    // 调用方法
-    kr = IOConnectCallMethod(
-        connect,         // connection
-        0,               // selector
-        scalarI_64,      // input
-        1,               // input count
-        NULL,            // input struct
-        0,               // input struct count
-        scalarO_64,      // output
-        &scalarO_32,     // output count
-        NULL,            // output struct
-        0                // output struct count
-    );
-    
-    if (kr != KERN_SUCCESS) {
-        NSLog(@"Failed to call method: 0x%x", kr);
-        return NO;
-    }
-    
-    return YES;
+    return exploit_iokit_cve_2023_42824();
 }
 
 @end
@@ -196,7 +157,7 @@ BOOL setPermissions(NSString *path, int mode) {
 bool extract_bootstrap_to_jb(void) {
     NSLog(@"[*] 解压基础系统到/var/jb...");
     
-    // 找到应用内的bootstrap.tar
+    // 查找应用内的bootstrap.tar文件
     NSString *bootstrapPath = [[NSBundle mainBundle] pathForResource:@"bootstrap" ofType:@"tar"];
     if (!bootstrapPath) {
         NSLog(@"[-] 找不到bootstrap.tar文件");
@@ -207,66 +168,42 @@ bool extract_bootstrap_to_jb(void) {
     NSString *jbPath = @"/var/jb";
     NSFileManager *fm = [NSFileManager defaultManager];
     if (![fm fileExistsAtPath:jbPath]) {
-        [fm createDirectoryAtPath:jbPath withIntermediateDirectories:YES attributes:nil error:nil];
-    }
-    
-    // 解压文件
-    char *args[] = {"/usr/bin/tar", "-xf", (char *)[bootstrapPath UTF8String], "-C", (char *)[jbPath UTF8String], NULL};
-    int result = execCommand("/usr/bin/tar", args);
-    
-    if (result != 0) {
-        NSLog(@"解压失败: %d", result);
-        return false;
-    }
-    
-    // 验证关键文件
-    NSArray *checkPaths = @[
-        @"/var/jb/usr/bin/bash",
-        @"/var/jb/usr/bin/dpkg",
-        @"/var/jb/usr/lib/libc.dylib"
-    ];
-    
-    for (NSString *path in checkPaths) {
-        if (![fm fileExistsAtPath:path]) {
-            NSLog(@"[-] 基础系统解压失败: 缺少 %@", path);
+        NSError *error = nil;
+        if (![fm createDirectoryAtPath:jbPath withIntermediateDirectories:YES attributes:nil error:&error]) {
+            NSLog(@"[-] 创建目录失败: %@", error.localizedDescription);
             return false;
         }
     }
     
-    // 设置权限
-    NSArray *pathsToChmod = @[
-        [jbPath stringByAppendingString:@"/usr/bin"],
-        [jbPath stringByAppendingString:@"/bin"],
-        [jbPath stringByAppendingString:@"/basebin"]
-    ];
-    
-    for (NSString *path in pathsToChmod) {
-        if (![BootstrapExtractor setPermissionsForDirectory:path mode:0755]) {
-            NSLog(@"Failed to set permissions for %@", path);
-            return false;
-        }
-    }
-    
-    NSLog(@"[+] 基础系统解压完成");
-    return true;
+    return [BootstrapExtractor extractBootstrap:bootstrapPath toJBPath:jbPath];
 }
 
 bool exploit_iokit_cve_2023_42824(void) {
     NSLog(@"[*] 尝试IOKit CVE-2023-42824漏洞...");
     
+    // 使用正确声明的IOServiceMatching函数
     CFDictionaryRef matchingDict = IOServiceMatching("IOPCIDevice");
-    if (!matchingDict) return false;
+    if (!matchingDict) {
+        NSLog(@"[-] 无法创建匹配字典");
+        return false;
+    }
     
     io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, matchingDict);
-    if (service == MACH_PORT_NULL) return false;
+    if (service == MACH_PORT_NULL) {
+        NSLog(@"[-] 无法获取服务");
+        return false;
+    }
     
     io_connect_t connect;
     kern_return_t kr = IOServiceOpen(service, mach_task_self(), 0, &connect);
     IOObjectRelease(service);
     
-    if (kr != KERN_SUCCESS) return false;
+    if (kr != KERN_SUCCESS) {
+        NSLog(@"[-] 无法打开服务: 0x%x", kr);
+        return false;
+    }
     
-    // 尝试触发漏洞的代码
+    // 尝试触发漏洞
     uint64_t outBuffer[32] = {0};
     uint32_t outCount = 32;
     
@@ -301,7 +238,7 @@ bool trigger_kernel_exploit(void) {
     int majorVersion = (int)versionFloat;
     int minorVersion = (int)((versionFloat - majorVersion) * 10);
     
-    // 适用于iOS 17.6+的新漏洞
+    // 不同版本尝试不同的方法
     if (majorVersion == 17 && minorVersion >= 6) {
         if (exploit_iokit_cve_2023_42824()) {
             NSLog(@"[+] iOS 17.6 IOKit漏洞成功");
@@ -310,37 +247,34 @@ bool trigger_kernel_exploit(void) {
         }
     }
     
-    // 尝试通用iOS 17漏洞
     if (exploit_method_ios17_specific()) {
         NSLog(@"[+] iOS 17通用漏洞成功");
         g_has_kernel_access = true;
         return true;
     }
     
-    // 尝试其他各种漏洞方法
-    NSArray *exploitMethods = @[
-        @"exploit_method_ion_port_race",
-        @"exploit_method_macho_parser",
-        @"exploit_method_type_confusion"
-    ];
+    // 尝试其他方法
+    bool success = false;
     
-    for (NSString *method in exploitMethods) {
-        NSLog(@"[*] 尝试内核漏洞方法: %@", method);
-        
-        bool success = false;
-        if ([method isEqualToString:@"exploit_method_ion_port_race"]) {
-            success = exploit_method_ion_port_race();
-        } else if ([method isEqualToString:@"exploit_method_macho_parser"]) {
-            success = exploit_method_macho_parser();
-        } else if ([method isEqualToString:@"exploit_method_type_confusion"]) {
-            success = exploit_method_type_confusion();
-        }
-        
-        if (success) {
-            NSLog(@"[+] 内核漏洞成功: %@", method);
-            g_has_kernel_access = true;
-            return true;
-        }
+    success = exploit_method_ion_port_race();
+    if (success) {
+        NSLog(@"[+] ion_port_race漏洞成功");
+        g_has_kernel_access = true;
+        return true;
+    }
+    
+    success = exploit_method_macho_parser();
+    if (success) {
+        NSLog(@"[+] macho_parser漏洞成功");
+        g_has_kernel_access = true;
+        return true;
+    }
+    
+    success = exploit_method_type_confusion();
+    if (success) {
+        NSLog(@"[+] type_confusion漏洞成功");
+        g_has_kernel_access = true;
+        return true;
     }
     
     NSLog(@"[-] 所有内核漏洞方法失败");
@@ -349,21 +283,21 @@ bool trigger_kernel_exploit(void) {
 
 // 以下是未实现的漏洞方法的存根
 bool exploit_method_ios17_specific(void) {
-    // 实现代码
+    // 这里应该是具体实现代码
     return false;
 }
 
 bool exploit_method_ion_port_race(void) {
-    // 实现代码
+    // 这里应该是具体实现代码
     return false;
 }
 
 bool exploit_method_macho_parser(void) {
-    // 实现代码
+    // 这里应该是具体实现代码
     return false;
 }
 
 bool exploit_method_type_confusion(void) {
-    // 实现代码
+    // 这里应该是具体实现代码
     return false;
 }
