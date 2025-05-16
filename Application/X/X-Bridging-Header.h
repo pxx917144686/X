@@ -50,4 +50,7 @@ bool exploit_iokit_cve_2023_42824(void);
 // 确保能访问 BootstrapExtractor 
 #import "objc/BootstrapExtractor.h"
 
+// 添加 IOKit 助手头文件
+#import "objc/IOKitHelper.h"
+
 #endif /* X_Bridging_Header_h */
