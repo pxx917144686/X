@@ -7,11 +7,10 @@
 
 import SwiftUI
 import AVFoundation
-import Foundation
 
 // 主内容视图
 struct ContentView: View {
-    @StateObject private var logStore = LogStore.shared
+    @ObservedObject private var logStore = LogStore.shared
     @State private var isExploitRunning = false
     @State private var exploitStatus = "准备就绪"
     @State private var exploitProgress: Float = 0.0
@@ -22,158 +21,74 @@ struct ContentView: View {
     
     var body: some View {
         NavigationView {
-            TabView(selection: $selectedTab) {
-                ExploitChainTab(
-                    logStore: logStore,
-                    isExploitRunning: $isExploitRunning,
-                    exploitStatus: $exploitStatus,
-                    exploitProgress: $exploitProgress,
-                    rootAccess: $rootAccess,
-                    sileoDetected: $sileoDetected,
-                    selectedStage: $selectedStage,
-                    selectedTab: $selectedTab
-                )
-                .tabItem {
-                    Label("漏洞链", systemImage: "bolt.shield.fill")
-                }
-                .tag(0)
-                
-                FileModificationTab(logStore: logStore)
-                    .tabItem {
-                        Label("文件修改", systemImage: "doc.badge.gearshape")
-                    }
-                    .tag(1)
-                
-                SileoManagementTab(logStore: logStore)
-                    .tabItem {
-                        Label("Sileo", systemImage: "cube.box.fill")
-                    }
-                    .tag(2)
-                
-                SettingsTab(logStore: logStore)
-                    .tabItem {
-                        Label("关于", systemImage: "gear")
-                    }
-                    .tag(3)
-            }
+            mainContentView
         }
     }
-}
-
-// 简化的Tab视图组件
-struct ExploitChainTab: View {
-    @ObservedObject var logStore: LogStore
-    @Binding var isExploitRunning: Bool
-    @Binding var exploitStatus: String
-    @Binding var exploitProgress: Float
-    @Binding var rootAccess: Bool
-    @Binding var sileoDetected: Bool
-    @Binding var selectedStage: Int
-    @Binding var selectedTab: Int
     
-    var body: some View {
-        ExploitChainView(logStore: logStore)
-    }
-}
-
-struct FileModificationTab: View {
-    @ObservedObject var logStore: LogStore
-    
-    var body: some View {
-        FileModificationView(logStore: logStore)
-    }
-}
-
-struct SileoManagementTab: View {
-    @ObservedObject var logStore: LogStore
-    
-    var body: some View {
-        NavigationView {
-            SileoView(logStore: logStore)
-        }
-    }
-}
-
-struct SettingsTab: View {
-    @ObservedObject var logStore: LogStore
-    
-    var body: some View {
-        SettingsView(logStore: logStore)
-    }
-}
-
-// 文件修改视图 - 简化为最基本功能
-struct FileModificationView: View {
-    @ObservedObject var logStore: LogStore
-    
-    var body: some View {
+    // 分解复杂表达式为多个子视图
+    private var mainContentView: some View {
         VStack {
-            Text("文件修改")
-                .font(.headline)
-                .padding()
-            
-            Text("文件修改功能暂未实现")
-                .foregroundColor(.gray)
-                .padding()
+            headerSection
+            controlSection
+            footerSection
         }
     }
-}
-
-// ExploitChainView的部分实现
-struct ExploitChainView: View {
-    @ObservedObject var logStore: LogStore
-    @State private var isRunning = false
-    @State private var exploitProgress: Double = 0
-    @State private var showAlert = false
-    @State private var alertTitle = ""
-    @State private var alertMessage = ""
-    @State private var statusText = "准备就绪"
-    @State private var selectedExploit: ExploitType = .fileZero
-    @State private var exploitStages: [ExploitStage] = []
-    @State private var currentStageIndex: Int = 0
-    @State private var techDetails: String = ""
-    @State private var showTechDetails = false
     
-    // 漏洞利用阶段模型
-    struct ExploitStage: Identifiable, Equatable {
-        let id = UUID()
-        let name: String
-        var status: StageStatus
-        let systemImage: String
-        
-        enum StageStatus: String {
-            case waiting = "等待中"
-            case running = "执行中"
-            case success = "成功"
-            case failed = "失败"
+    private var headerSection: some View {
+        VStack {
+            Image(systemName: "shield.lefthalf.filled")
+                .font(.system(size: 24))
+                .foregroundColor(.blue)
             
-            var color: Color {
-                switch self {
-                case .waiting: return .gray
-                case .running: return .orange
-                case .success: return .green
-                case .failed: return .red
+            Text("高级漏洞利用链")
+                .font(.headline)
+        }
+        .padding(.top)
+    }
+    
+    private var controlSection: some View {
+        VStack {
+            // 漏洞类型选择器
+            ExploitSelectorView(selectedExploit: $selectedExploit)
+            
+            // 执行按钮
+            ActionButtonView(isRunning: isRunning, action: executeAction)
+        }
+    }
+    
+    private var footerSection: some View {
+        VStack {
+            if isRunning || !exploitStages.isEmpty {
+                // 进度条
+                ProgressBarView(progress: exploitProgress)
+                
+                // 阶段列表
+                StagesView(
+                    stages: exploitStages,
+                    currentIndex: currentStageIndex,
+                    isRunning: isRunning
+                )
+                
+                // 技术详情
+                if !techDetails.isEmpty {
+                    TechDetailsToggleView(
+                        isExpanded: $showTechDetails,
+                        content: techDetails
+                    )
                 }
             }
+            
+            // 日志区域
+            LogsView(logStore: logStore, statusText: statusText)
         }
-    }
-    
-    var body: some View {
-        ExploitChainMainView(
-            isRunning: $isRunning,
-            exploitProgress: $exploitProgress,
-            showAlert: $showAlert,
-            alertTitle: $alertTitle,
-            alertMessage: $alertMessage,
-            statusText: $statusText,
-            selectedExploit: $selectedExploit,
-            exploitStages: $exploitStages,
-            currentStageIndex: $currentStageIndex,
-            techDetails: $techDetails,
-            showTechDetails: $showTechDetails,
-            logStore: logStore,
-            executeAction: executeExploitChain
-        )
+        .padding(.vertical)
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertTitle),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("确定"))
+            )
+        }
     }
     
     // 将UI部分独立出来，减轻body的复杂度
@@ -1163,37 +1078,19 @@ struct ExploitChainMainView: View {
     }
 }
 
-// 将复杂的body拆分为多个子视图
-struct ContentView: View {
-    var body: some View {
-        NavigationView {
-            mainContentView
-        }
-    }
+// 扩展放在同一个文件中，保持代码组织结构
+extension ContentView {
+    // 其他辅助方法...
     
-    private var mainContentView: some View {
-        VStack {
-            headerSection
-            controlSection
-            statusSection
+    func handleInstallationProgress(_ step: Any) {
+        if let sileoStep = step as? SileoInstallStep {
+            // 处理Sileo安装步骤...
+        } else if let progress = step as? Double {
+            // 处理进度...
         }
     }
-    
-    private var headerSection: some View {
-        VStack {
-            // 标题和头部UI...
-        }
-    }
-    
-    private var controlSection: some View {
-        VStack {
-            // 控制按钮UI...
-        }
-    }
-    
-    private var statusSection: some View {
-        VStack {
-            // 状态显示UI...
-        }
-    }
+}
+
+extension ExploitChainMainView {
+    // 辅助方法...
 }
