@@ -212,7 +212,7 @@ struct ContentView: View {
     private var jailbreakOptionsCard: some View {
         VStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("越狱配置")
+                Text("漏洞利用配置")  // 改为"漏洞利用"而不是"越狱"
                     .font(.headline)
                     .foregroundColor(.secondary)
                 
@@ -236,7 +236,11 @@ struct ContentView: View {
             }
             
             VStack(spacing: 12) {
-                ActionButtonView(isRunning: isRunning, action: executeAction)
+                ActionButtonView(
+                    isRunning: isRunning,
+                    action: executeAction,
+                    buttonText: isRunning ? "正在执行..." : "开始漏洞利用"  // 修改按钮文本
+                )
                 
                 if !isRunning {
                     HStack {
@@ -361,7 +365,7 @@ struct ContentView: View {
         iOS版本: \(osVersion)
         
         内核漏洞 (CVE-2024-23222): \(isIOS17VMCompatible() ? "兼容" : "不兼容")
-        WebKit漏洞 (CVE-2024-44131): \(isCompatibleWithWebKitExploit() ? "兼容" : "不兼容") // 修复：使用正确的方法名
+        WebKit漏洞 (CVE-2024-44131): \(isCompatibleWithWebKitExploit() ? "兼容" : "不兼容")
         CoreMedia漏洞 (CVE-2025-24085): \(isCoreMediaExploitCompatible() ? "兼容" : "不兼容")
         VM漏洞: \(isCompatibleWithVMExploit() ? "兼容" : "不兼容")
         
@@ -383,13 +387,31 @@ struct ContentView: View {
         
         // 开始执行
         isRunning = true
-        logStore.append(message: "开始执行越狱过程")
+        logStore.append(message: "开始执行漏洞利用过程")
         
         // 设置执行阶段
         setupExploitStages()
         
-        // 模拟执行过程
-        executeStep1()
+        // 执行实际漏洞利用链
+        executeRealExploitChain()
+    }
+    
+    // 新增：执行真实漏洞利用链
+    private func executeRealExploitChain() {
+        // 更新阶段状态
+        updateStageStatus(index: 0, status: .running)
+        statusText = "正在初始化环境..."
+        
+        // 执行实际的漏洞利用链
+        ExploitChainManager.shared.executeFullExploitChain { success in
+            if success {
+                self.logStore.append(message: "[+] 漏洞利用链执行成功")
+                self.finalizeJailbreak()
+            } else {
+                self.logStore.append(message: "[-] 漏洞利用链执行失败")
+                self.finishWithError("漏洞利用链执行失败，请重试")
+            }
+        }
     }
     
     private func setupExploitStages() {
@@ -526,14 +548,29 @@ struct ContentView: View {
     }
     
     private func finishWithSuccess() {
-        statusText = "越狱完成"
-        isRunning = false
-        updateTechnicalDetails("越狱过程完成！\n设备已成功越狱\n可以使用Sileo安装软件包")
-        
-        // 显示成功消息
-        alertTitle = "越狱成功"
-        alertMessage = "您的设备已成功越狱。现在可以使用Sileo安装软件包。"
-        showAlert = true
+        // 改进越狱状态验证
+        ExploitChainManager.shared.verifyRealJailbreakStatus { realStatus, details in
+            if realStatus {
+                self.statusText = "越狱完成"
+                self.isRunning = false
+                self.updateTechnicalDetails("越狱过程完成！\n已验证：\n- 拥有root权限\n- 文件系统可读写\n- 越狱环境完全可用")
+                
+                // 显示成功消息
+                self.alertTitle = "越狱成功"
+                self.alertMessage = "您的设备已成功越狱，所有越狱组件正常工作。现在可以使用Sileo安装软件包。"
+                self.showAlert = true
+            } else {
+                // 如果验证失败，显示为"提权成功"而不是"越狱成功"
+                self.statusText = "提权成功，但非完整越狱"
+                self.isRunning = false
+                self.updateTechnicalDetails("漏洞利用成功，但未实现完整越狱\n\n详情：\n\(details)")
+                
+                // 显示警告消息，明确区分越狱和提权
+                self.alertTitle = "漏洞利用成功但非越狱"
+                self.alertMessage = "漏洞利用成功获取了提升的权限，但这不是完整的越狱。\n\n详情: \(details)\n\n如需完整越狱功能，请使用专门的越狱工具。"
+                self.showAlert = true
+            }
+        }
     }
     
     private func finishWithError(_ message: String) {
@@ -683,6 +720,7 @@ struct ExploitSelectorView: View {
 struct ActionButtonView: View {
     var isRunning: Bool
     var action: () -> Void
+    var buttonText: String? = nil
     
     var body: some View {
         Button(action: action) {
@@ -690,7 +728,7 @@ struct ActionButtonView: View {
                 Image(systemName: isRunning ? "ellipsis.circle" : "bolt.fill")
                     .font(.headline)
                 
-                Text(isRunning ? "正在执行..." : "开始越狱")
+                Text(buttonText ?? (isRunning ? "正在执行..." : "开始漏洞利用"))
                     .font(.headline)
             }
             .frame(maxWidth: .infinity)
