@@ -1,9 +1,13 @@
 import Foundation
 import UIKit
 
+// 导入SileoInstallStep
+// import SileoInstallStep // 如果放在单独的文件中
+
 class SileoInstaller {
     static let shared = SileoInstaller()
     
+    // 使用新定义的枚举
     var installationProgress: ((SileoInstallStep) -> Void)?
     
     private init() {}
