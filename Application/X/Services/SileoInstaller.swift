@@ -33,8 +33,8 @@ class SileoInstaller {
         self.installationProgress?(.configuringPermissions)
         
         // 重启SpringBoard确保图标显示
-        DispatchQueue.global(qos: .userInitiated).async {
-            _ = executeCommand("/usr/bin/killall", withArguments: ["-9", "SpringBoard"])
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            _ = self.executeCommand("/usr/bin/killall", withArguments: ["-9", "SpringBoard"])
             DispatchQueue.main.async {
                 completion(true)
             }
