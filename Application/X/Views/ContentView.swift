@@ -555,6 +555,24 @@ struct ContentView: View {
     private func updateTechnicalDetails(_ detail: String) {
         techDetails = detail
     }
+    
+    // MARK: - 辅助函数
+    // 将showJailbreakOptions函数移动到结构体内部
+    private func showJailbreakOptions() {
+        alertTitle = "越狱高级选项"
+        alertMessage = """
+        越狱模式: \(selectedExploit.rawValue)
+        
+        可配置选项:
+        - 绕过类型: 自动选择
+        - 重挂载根文件系统: 启用
+        - 安装Sileo: 启用
+        - 添加默认源: 启用
+        
+        这些选项在当前版本中不可更改。未来版本将支持自定义配置。
+        """
+        showAlert = true
+    }
 }
 
 // 添加必要的辅助视图组件
@@ -687,21 +705,4 @@ struct ActionButtonView: View {
         .disabled(isRunning)
         .buttonStyle(PlainButtonStyle())
     }
-}
-
-// 将 showJailbreakOptions 移到结构体内部
-private func showJailbreakOptions() {
-    alertTitle = "越狱高级选项"
-    alertMessage = """
-    越狱模式: \(selectedExploit.rawValue)
-    
-    可配置选项:
-    - 绕过类型: 自动选择
-    - 重挂载根文件系统: 启用
-    - 安装Sileo: 启用
-    - 添加默认源: 启用
-    
-    这些选项在当前版本中不可更改。未来版本将支持自定义配置。
-    """
-    showAlert = true
 }
