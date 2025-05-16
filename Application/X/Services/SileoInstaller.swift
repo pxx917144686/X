@@ -31,7 +31,30 @@ class SileoInstaller {
         // 下面是其他代码...
         
         self.installationProgress?(.configuringPermissions)
+        
+        // 重启SpringBoard确保图标显示
+        DispatchQueue.global(qos: .userInitiated).async {
+            let sbResult = system("killall -9 SpringBoard")
+            DispatchQueue.main.async {
+                completion(true)
+            }
+        }
     }
     
-    // 其他方法...
+    // 验证Sileo是否真正安装成功
+    private func verifySileoInstallation() -> Bool {
+        let siloePaths = [
+            "/var/jb/Applications/Sileo.app/Sileo", 
+            "/Applications/Sileo.app/Sileo"
+        ]
+        
+        for path in siloePaths {
+            if FileManager.default.fileExists(atPath: path) {
+                let result = RootVerifier.shared.executeCommand("ls -la \(path)")
+                return true
+            }
+        }
+        return false
+    }
+    
 }
