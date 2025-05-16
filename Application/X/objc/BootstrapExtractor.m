@@ -17,13 +17,14 @@ bool trigger_kernel_exploit(void);
 #import <spawn.h>
 #import <sys/wait.h>
 #import <CoreFoundation/CoreFoundation.h>
+#import <mach/mach.h>  // 添加此头文件包含 mach_task_self()
 
-// IOKit 声明
-typedef struct __IOService *io_service_t;
-typedef struct __IOConnect *io_connect_t;
+// IOKit 类型声明 - 修正类型定义
 typedef mach_port_t io_object_t;
 typedef io_object_t io_registry_entry_t;
-typedef UInt32 IOOptionBits;
+typedef io_object_t io_service_t;       // 修正：io_service_t 是 io_object_t 类型
+typedef io_object_t io_connect_t;
+typedef uint32_t IOOptionBits;
 extern const mach_port_t kIOMasterPortDefault;
 
 // IOKit 函数声明
@@ -43,6 +44,9 @@ extern kern_return_t IOConnectCallMethod(
     uint32_t *outputCnt,
     void *outputStruct,
     size_t *outputStructCnt);
+
+// 添加 mach_task_self 函数声明
+extern task_port_t mach_task_self(void);
 
 // 全局变量
 static bool g_has_kernel_access = false;
