@@ -17,15 +17,8 @@ class LogStore: ObservableObject {
     
     func append(message: String) {
         DispatchQueue.main.async {
-            let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .medium)
-            let logEntry = "[\(timestamp)] \(message)"
-            print(logEntry)
-            self.logs.append(logEntry)
-            
-            // 限制日志数量以避免内存占用过多
-            if self.logs.count > 1000 {
-                self.logs.removeFirst(500)
-            }
+            self.logs.append(message)
+            print(message)
         }
     }
     
