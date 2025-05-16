@@ -12,15 +12,18 @@ struct LogView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading) {
-                ForEach(logStore.messages, id: \.self) { message in
+            VStack(alignment: .leading, spacing: 4) {
+                // 修改这里，使用logStore.logs而不是logStore.messages
+                ForEach(logStore.logs, id: \.self) { message in
                     Text(message)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.system(.footnote, design: .monospaced))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
         }
+        .navigationTitle("日志")
         .toolbar {
             Button("清除") {
                 logStore.clear()
