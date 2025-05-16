@@ -17,10 +17,10 @@ X.ipa: build/Build/Products/Debug-iphoneos/X.app
 
 ifeq ($(NIGHTLY), 1)
 build/Build/Products/Debug-iphoneos/X.app: FORCE
-	xcodebuild -scheme X -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO GCC_PREPROCESSOR_DEFINITIONS='NIGHTLY=1 COMMIT_HASH=\"$(COMMIT_HASH)\"'
+	xcodebuild -scheme X -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO GCC_PREPROCESSOR_DEFINITIONS='NIGHTLY=1 COMMIT_HASH=\"$(COMMIT_HASH)\"' OTHER_LDFLAGS="-ldl"
 else
 build/Build/Products/Debug-iphoneos/X.app: FORCE
-	xcodebuild -scheme X -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
+	xcodebuild -scheme X -derivedDataPath build -destination 'generic/platform=iOS' CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO OTHER_LDFLAGS="-ldl"
 endif
 
 clean:
