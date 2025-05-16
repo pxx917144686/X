@@ -376,18 +376,14 @@ extension RootVerifier {
         
         // 检查是否可以运行未签名代码
         let commandResult = executeCommand("echo 'Jailbreak test'")
-        if commandResult.output != nil {
-            // 使用commandResult.output进行操作
-        }
+        // 如果output不是Optional类型，直接使用
+        let output = commandResult.output
+        print("Command output: \(output)")
         
-        // 或者修改为:
-        let commandResult = executeCommand("echo 'Jailbreak test'")
-        if let output = commandResult.output as? String? {
-            // 使用output
+        // 如果需要检查output是否为nil，可以这样做
+        if !output.isEmpty {
+            // 处理非空输出
         }
-        
-        // 第384行，修改为
-        _ = executeCommand("echo 'Jailbreak test'").output  // 使用_忽略未使用的值
         
         // 检查是否有root权限
         if getuid() == 0 {
