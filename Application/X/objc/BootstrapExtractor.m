@@ -12,10 +12,15 @@ bool trigger_kernel_exploit(void);
 
 // BootstrapExtractor.m
 #import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import <mach/mach.h>
 #import "BootstrapExtractor.h"
 #import <spawn.h>
 #import <sys/wait.h>
+
+// 全局变量声明
+static bool g_has_kernel_access = false;
+static uint64_t g_kernel_base = 0;
 
 // IOKit 类型声明
 typedef mach_port_t io_service_t;
@@ -25,6 +30,7 @@ extern const mach_port_t kIOMasterPortDefault;
 // IOKit 函数声明
 extern io_service_t IOServiceGetMatchingService(mach_port_t, CFDictionaryRef);
 extern kern_return_t IOServiceOpen(io_service_t, task_port_t, uint32_t, io_connect_t*);
+extern kern_return_t IOServiceClose(io_connect_t);
 extern kern_return_t IOObjectRelease(io_service_t);
 extern kern_return_t IOConnectCallMethod(
     mach_port_t connection,
@@ -37,6 +43,12 @@ extern kern_return_t IOConnectCallMethod(
     uint32_t *outputCnt,
     void *outputStruct,
     size_t *outputStructCnt);
+
+// 声明缺少的漏洞利用函数
+bool exploit_method_ios17_specific(void);
+bool exploit_method_ion_port_race(void);
+bool exploit_method_macho_parser(void);
+bool exploit_method_type_confusion(void);
 
 // 替代 system() 函数执行命令的函数
 int execCommand(const char* cmd, char* const* args) {
@@ -67,6 +79,14 @@ BOOL setPermissions(NSString *path, int mode) {
     }
     return success;
 }
+
+@interface BootstrapExtractor : NSObject
+
++ (BOOL)extractBootstrap:(NSString *)bootstrapPath toJBPath:(NSString *)jbPath;
++ (BOOL)setPermissionsForDirectory:(NSString *)dirPath mode:(int)mode;
++ (BOOL)kernelHack;
+
+@end
 
 @implementation BootstrapExtractor
 
@@ -221,9 +241,9 @@ bool extract_bootstrap_to_jb(void) {
     ];
     
     for (NSString *path in pathsToChmod) {
-        if (![self setPermissionsForDirectory:path mode:0755]) {
+        if (![BootstrapExtractor setPermissionsForDirectory:path mode:0755]) {
             NSLog(@"Failed to set permissions for %@", path);
-            return NO;
+            return false;
         }
     }
     
@@ -234,8 +254,10 @@ bool extract_bootstrap_to_jb(void) {
 bool exploit_iokit_cve_2023_42824(void) {
     NSLog(@"[*] 尝试IOKit CVE-2023-42824漏洞...");
     
-    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault,
-                                                      IOServiceMatching("IOPCIDevice"));
+    CFDictionaryRef matchingDict = IOServiceMatching("IOPCIDevice");
+    if (!matchingDict) return false;
+    
+    io_service_t service = IOServiceGetMatchingService(kIOMasterPortDefault, matchingDict);
     if (service == MACH_PORT_NULL) return false;
     
     io_connect_t connect;
@@ -244,7 +266,7 @@ bool exploit_iokit_cve_2023_42824(void) {
     
     if (kr != KERN_SUCCESS) return false;
     
-    // 漏洞利用代码
+    // 尝试触发漏洞的代码
     uint64_t outBuffer[32] = {0};
     uint32_t outCount = 32;
     
@@ -322,5 +344,26 @@ bool trigger_kernel_exploit(void) {
     }
     
     NSLog(@"[-] 所有内核漏洞方法失败");
+    return false;
+}
+
+// 以下是未实现的漏洞方法的存根
+bool exploit_method_ios17_specific(void) {
+    // 实现代码
+    return false;
+}
+
+bool exploit_method_ion_port_race(void) {
+    // 实现代码
+    return false;
+}
+
+bool exploit_method_macho_parser(void) {
+    // 实现代码
+    return false;
+}
+
+bool exploit_method_type_confusion(void) {
+    // 实现代码
     return false;
 }
