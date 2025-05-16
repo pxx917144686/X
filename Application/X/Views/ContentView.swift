@@ -48,7 +48,7 @@ struct ContentView: View {
                 .tag(1)
             
             // 实验性功能页面
-            ExperimentalView()
+            ExperimentalView(logStore: logStore)
                 .tabItem {
                     Image(systemName: "flask.fill")
                     Text("实验")
@@ -643,7 +643,7 @@ struct StageProgressView: View {
             return Color.blue
         case .success:
             return Color.green
-        case .failure:
+        case .failed, .failure:
             return Color.red
         }
     }
@@ -656,7 +656,7 @@ struct StageProgressView: View {
             return "arrow.triangle.2.circlepath"
         case .success:
             return "checkmark"
-        case .failure:
+        case .failed, .failure:
             return "xmark"
         }
     }
