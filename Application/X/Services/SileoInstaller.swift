@@ -34,27 +34,63 @@ class SileoInstaller {
         
         // 重启SpringBoard确保图标显示
         DispatchQueue.global(qos: .userInitiated).async {
-            let sbResult = system("killall -9 SpringBoard")
+            _ = executeCommand("/usr/bin/killall", withArguments: ["-9", "SpringBoard"])
             DispatchQueue.main.async {
                 completion(true)
             }
         }
     }
     
-    // 验证Sileo是否真正安装成功
-    private func verifySileoInstallation() -> Bool {
-        let siloePaths = [
-            "/var/jb/Applications/Sileo.app/Sileo", 
-            "/Applications/Sileo.app/Sileo"
-        ]
-        
-        for path in siloePaths {
-            if FileManager.default.fileExists(atPath: path) {
-                let result = RootVerifier.shared.executeCommand("ls -la \(path)")
-                return true
+    func launchSileo(completion: @escaping (Bool) -> Void) {
+        if let url = URL(string: "sileo://") {
+            UIApplication.shared.open(url) { success in
+                if success {
+                    completion(true)
+                    return
+                }
+                
+                // 如果URL Scheme失败，尝试直接启动
+                DispatchQueue.global(qos: .userInitiated).async {
+                    // 尝试多种方法重启SpringBoard，确保图标显示
+                    _ = self.executeCommand("/usr/bin/killall", withArguments: ["-9", "SpringBoard"])
+                    
+                    // 等待一段时间确保SpringBoard重启
+                    Thread.sleep(forTimeInterval: 2.0)
+                    
+                    DispatchQueue.main.async {
+                        completion(true)
+                    }
+                }
             }
+        } else {
+            completion(false)
         }
-        return false
     }
     
+    private func executeCommand(_ command: String, withArguments arguments: [String]) -> Int32 {
+        var pid: pid_t = 0
+        var fileActions: posix_spawn_file_actions_t?
+        
+        posix_spawn_file_actions_init(&fileActions)
+        
+        let argv: [UnsafeMutablePointer<CChar>?] = [strdup(command)] + arguments.map { strdup($0) } + [nil]
+        
+        let status = posix_spawn(&pid, command, &fileActions, nil, argv, nil)
+        
+        // 释放内存
+        for arg in argv where arg != nil {
+            free(arg)
+        }
+        
+        posix_spawn_file_actions_destroy(&fileActions)
+        
+        if status == 0 {
+            // 等待进程完成
+            var exitStatus: Int32 = 0
+            waitpid(pid, &exitStatus, 0)
+            return exitStatus
+        } else {
+            return -1
+        }
+    }
 }
