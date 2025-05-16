@@ -203,11 +203,7 @@ struct ContentView: View {
         
         // 调用SileoInstaller
         ExploitChainManager.shared.installSileo(progressHandler: { step in
-            if let sileoStep = step as? SileoInstallStep {
-                self.statusText = "正在安装Sileo: \(sileoStep.description)"
-            } else {
-                self.statusText = "正在安装Sileo..."
-            }
+            self.statusText = "正在安装Sileo: \(step.description)"
         }) { success in
             if success {
                 self.updateStageStatus(index: 5, status: .success)
