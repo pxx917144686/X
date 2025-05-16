@@ -182,7 +182,50 @@ struct ContentView: View {
         }
     }
     
-    // 其他步骤方法...
+    private func executeStep5() {
+        // 执行第五步...
+        updateStageStatus(index: 4, status: .running)
+        statusText = "阶段5: 重新挂载文件系统"
+        
+        // 其他代码...
+        
+        // 模拟完成
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.updateStageStatus(index: 4, status: .success)
+            self.executeStep6()
+        }
+    }
+    
+    private func executeStep6() {
+        // 执行安装Sileo的步骤
+        updateStageStatus(index: 5, status: .running)
+        statusText = "阶段6: 安装Sileo"
+        
+        // 调用SileoInstaller
+        ExploitChainManager.shared.installSileo(progressHandler: { step in
+            self.statusText = "正在安装Sileo: \(step.description)"
+        }) { success in
+            if success {
+                self.updateStageStatus(index: 5, status: .success)
+                self.executeStep7()
+            } else {
+                self.showError("安装失败", "Sileo安装失败")
+                self.finalizeExploit(false)
+            }
+        }
+    }
+    
+    private func executeStep7() {
+        // 最终步骤
+        updateStageStatus(index: 6, status: .running)
+        statusText = "阶段7: 完成越狱"
+        
+        // 模拟完成
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.updateStageStatus(index: 6, status: .success)
+            self.finalizeExploit(true)
+        }
+    }
     
     // MARK: - 辅助方法
     private func checkSystemCompatibility() -> Bool {
