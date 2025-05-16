@@ -17,7 +17,7 @@ class LogStore: ObservableObject {
     
     func append(message: String) {
         DispatchQueue.main.async {
-            self.logs.append(message)
+            self.logs.append("\(self.formattedDate()): \(message)")
             print(message)
         }
     }
@@ -26,6 +26,12 @@ class LogStore: ObservableObject {
         DispatchQueue.main.async {
             self.logs.removeAll()
         }
+    }
+    
+    private func formattedDate() -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss.SSS"
+        return formatter.string(from: Date())
     }
 }
 
