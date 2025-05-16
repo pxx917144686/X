@@ -26,8 +26,6 @@ struct ContentView: View {
     // 设备信息
     private let deviceModel = UIDevice.current.model
     private let osVersion = UIDevice.current.systemVersion
-    // 修复：调用正确的方法
-    private let exploitCompatibility = true
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -39,8 +37,9 @@ struct ContentView: View {
                 }
                 .tag(0)
             
-            // Sileo商店页面 - 修复：传递logStore参数
-            SileoView(logStore: logStore)
+            // Sileo商店页面
+            SileoView()
+                .environmentObject(logStore)
                 .tabItem {
                     Image(systemName: "bag.fill")
                     Text("Sileo")
@@ -76,31 +75,52 @@ struct ContentView: View {
     // MARK: - 越狱主视图
     private var jailbreakView: some View {
         NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // 顶部信息卡片
-                    deviceInfoCard
-                    
-                    // 越狱配置选项
-                    jailbreakOptionsCard
-                    
-                    // 执行状态区域
-                    if isRunning || !exploitStages.isEmpty {
-                        jailbreakStatusCard
+            ZStack {
+                // 背景渐变
+                LinearGradient(
+                    gradient: Gradient(colors: [Color(.systemBackground), Color(.systemGray6).opacity(0.3)]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .edgesIgnoringSafeArea(.all)
+                
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 顶部信息卡片
+                        deviceInfoCard
+                        
+                        // 越狱配置选项
+                        jailbreakOptionsCard
+                        
+                        // 执行状态区域
+                        if isRunning || !exploitStages.isEmpty {
+                            jailbreakStatusCard
+                        }
+                        
+                        // 日志区域
+                        LogsView(logStore: logStore, statusText: statusText)
                     }
-                    
-                    // 日志区域
-                    LogsView(logStore: logStore, statusText: statusText)
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
+                    .animation(.easeInOut, value: isRunning)
+                    .animation(.easeInOut, value: exploitStages.isEmpty)
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 20)
+                .navigationTitle("X")
+                .navigationBarItems(trailing: 
+                    HStack {
+                        if isRunning {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                                .scaleEffect(0.7)
+                                .padding(.trailing, 8)
+                        }
+                        
+                        Button(action: { showCompatibilityInfo() }) {
+                            Image(systemName: "info.circle")
+                        }
+                    }
+                )
             }
-            .navigationTitle("X")
-            .navigationBarItems(trailing: 
-                Button(action: { showCompatibilityInfo() }) {
-                    Image(systemName: "info.circle")
-                }
-            )
         }
     }
     
@@ -133,42 +153,61 @@ struct ContentView: View {
                 
                 ZStack {
                     Circle()
-                        .fill(exploitCompatibility ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
+                        .fill(getExploitCompatibility() ? Color.green.opacity(0.2) : Color.orange.opacity(0.2))
                         .frame(width: 50, height: 50)
                     
-                    Image(systemName: exploitCompatibility ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    Image(systemName: getExploitCompatibility() ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .font(.title)
-                        .foregroundColor(exploitCompatibility ? .green : .orange)
+                        .foregroundColor(getExploitCompatibility() ? .green : .orange)
                 }
             }
             
             Divider()
             
-            HStack {
-                Label("内核漏洞", systemImage: "cpu")
-                    .font(.subheadline)
+            Group {
+                HStack {
+                    Label("内核漏洞", systemImage: "cpu")
+                        .font(.subheadline)
+                    
+                    Spacer()
+                    
+                    Text(compatibilityText(for: .kernel))
+                        .font(.subheadline)
+                        .foregroundColor(compatibilityColor(for: .kernel))
+                }
                 
-                Spacer()
+                HStack {
+                    Label("WebKit漏洞", systemImage: "safari.fill")
+                        .font(.subheadline)
+                    
+                    Spacer()
+                    
+                    Text(compatibilityText(for: .webkit))
+                        .font(.subheadline)
+                        .foregroundColor(compatibilityColor(for: .webkit))
+                }
                 
-                Text(compatibilityText(for: .iOS17VM))
-                    .font(.subheadline)
-                    .foregroundColor(compatibilityColor(for: .iOS17VM))
-            }
-            
-            HStack {
-                Label("WebKit漏洞", systemImage: "safari.fill")
-                    .font(.subheadline)
-                
-                Spacer()
-                
-                Text(compatibilityText(for: .WebkitExploit))
-                    .font(.subheadline)
-                    .foregroundColor(compatibilityColor(for: .WebkitExploit))
+                HStack {
+                    Label("VM漏洞", systemImage: "memorychip")
+                        .font(.subheadline)
+                    
+                    Spacer()
+                    
+                    Text(compatibilityText(for: .vmBehaviorZero))
+                        .font(.subheadline)
+                        .foregroundColor(compatibilityColor(for: .vmBehaviorZero))
+                }
             }
         }
         .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
     }
     
     private var jailbreakOptionsCard: some View {
@@ -178,7 +217,23 @@ struct ContentView: View {
                     .font(.headline)
                     .foregroundColor(.secondary)
                 
-                ExploitSelectorView(selectedExploit: $selectedExploit)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("选择漏洞利用方式:")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    ExploitSelectorView(selectedExploit: $selectedExploit)
+                    
+                    HStack {
+                        Image(systemName: "bolt.shield")
+                            .foregroundColor(.orange)
+                        
+                        Text("推荐: \(recommendedExploitChain().description)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
             }
             
             VStack(spacing: 12) {
@@ -200,8 +255,14 @@ struct ContentView: View {
             }
         }
         .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemGray6))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
     }
     
     private var jailbreakStatusCard: some View {
@@ -224,10 +285,12 @@ struct ContentView: View {
     // MARK: - 辅助函数
     private func compatibilityText(for type: ExploitType) -> String {
         switch type {
-        case .iOS17VM:
-            return isIOS17VMCompatible() ? "兼容" : "不兼容"
-        case .WebkitExploit:
-            return isWebKitExploitCompatible() ? "兼容" : "不兼容"
+        case .kernel:
+            return isCompatibleWithKernelExploit() ? "兼容" : "不兼容"
+        case .webkit:
+            return isCompatibleWithWebKitExploit() ? "兼容" : "不兼容"
+        case .vmBehaviorZero:
+            return isCompatibleWithVMExploit() ? "兼容" : "不兼容"
         default:
             return "未测试"
         }
@@ -235,10 +298,12 @@ struct ContentView: View {
     
     private func compatibilityColor(for type: ExploitType) -> Color {
         switch type {
-        case .iOS17VM:
-            return isIOS17VMCompatible() ? .green : .red
-        case .WebkitExploit:
-            return isWebKitExploitCompatible() ? .green : .orange
+        case .kernel:
+            return isCompatibleWithKernelExploit() ? .green : .red
+        case .webkit:
+            return isCompatibleWithWebKitExploit() ? .green : .orange
+        case .vmBehaviorZero:
+            return isCompatibleWithVMExploit() ? .green : .blue
         default:
             return .gray
         }
@@ -246,18 +311,42 @@ struct ContentView: View {
     
     // 检查iOS 17 VM兼容性
     private func isIOS17VMCompatible() -> Bool {
-        // 检查iOS版本是否兼容内核漏洞
         let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
         guard let major = osComponents.first else { return false }
-        
-        // iOS 17 VM漏洞主要支持17.0-17.6版本
         return major == 17
     }
     
-    // 检查WebKit漏洞兼容性
-    private func isWebKitExploitCompatible() -> Bool {
-        // WebKit漏洞通常支持较广泛的iOS版本
-        return true
+    // 兼容性检查函数
+    private func isCompatibleWithKernelExploit() -> Bool {
+        let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
+        guard let major = osComponents.first else { return false }
+        let minor = osComponents.count > 1 ? osComponents[1] : 0
+        
+        // iOS 16.0-17.6
+        return (major == 16) || (major == 17 && minor <= 6)
+    }
+    
+    private func isCompatibleWithWebKitExploit() -> Bool {
+        let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
+        guard let major = osComponents.first else { return false }
+        return (major >= 15)
+    }
+    
+    private func isCompatibleWithVMExploit() -> Bool {
+        let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
+        guard let major = osComponents.first else { return false }
+        return major >= 15
+    }
+    
+    private func recommendedExploitChain() -> ExploitType {
+        let osComponents = osVersion.split(separator: ".").compactMap { Int($0) }
+        guard let major = osComponents.first else { return .userDefaults }
+        
+        if major == 17 {
+            return .iOS17VM
+        } else {
+            return .WebkitExploit
+        }
     }
     
     private func showCompatibilityInfo() {
@@ -446,7 +535,7 @@ struct ContentView: View {
         statusText = "阶段6: 安装Sileo"
         
         // 更新技术细节
-        updateTechnicalDetails("下载Sileo安装包...\n解压文件...\n设置权限...")
+        updateTechnicalDetails("下载Sileo安装包...\n解压文件
         
         // 模拟SileoInstaller
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
@@ -549,10 +638,12 @@ struct ActionButtonView: View {
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isRunning ? Color.gray : Color.blue)
+                    .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
             )
             .foregroundColor(.white)
         }
         .disabled(isRunning)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -564,6 +655,9 @@ struct TechnicalDetailsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Button(action: { isExpanded.toggle() }) {
                 HStack {
+                    Image(systemName: "terminal")
+                        .foregroundColor(.blue)
+                    
                     Text("技术细节")
                         .font(.subheadline)
                         .fontWeight(.medium)
@@ -572,15 +666,22 @@ struct TechnicalDetailsView: View {
                     
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
             .buttonStyle(PlainButtonStyle())
             
             if isExpanded {
                 Text(content)
-                    .font(.footnote)
+                    .font(.system(.footnote, design: .monospaced))
                     .foregroundColor(.secondary)
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(.systemGray5))
+                    )
                     .transition(.opacity)
             }
         }
@@ -606,28 +707,31 @@ struct StageProgressView: View {
                             .frame(width: 30, height: 30)
                         
                         Image(systemName: statusIcon(for: stages[index].status))
-                            .font(.caption)
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.white)
                     }
+                    .frame(width: 30, height: 30)
                     
                     Text(stages[index].name)
                         .font(.subheadline)
                         .foregroundColor(textColor(for: index))
+                        .padding(.leading, 8)
                     
                     Spacer()
                     
                     if index == currentIndex && isRunning && stages[index].status == .running {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle())
-                            .scaleEffect(0.7)
+                            .scaleEffect(0.8)
                     }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(index == currentIndex ? Color.blue.opacity(0.1) : Color.clear)
+                        .fill(index == currentIndex ? Color(.systemGray6) : Color.clear)
                 )
+                .animation(.easeInOut(duration: 0.2), value: currentIndex)
             }
         }
         .padding()
@@ -637,27 +741,19 @@ struct StageProgressView: View {
     
     private func statusColor(for status: ExploitStage.StageStatus) -> Color {
         switch status {
-        case .waiting:
-            return Color.gray
-        case .running:
-            return Color.blue
-        case .success:
-            return Color.green
-        case .failed, .failure:
-            return Color.red
+        case .waiting: return Color.gray
+        case .running: return Color.blue
+        case .success: return Color.green
+        case .failed, .failure: return Color.red
         }
     }
     
     private func statusIcon(for status: ExploitStage.StageStatus) -> String {
         switch status {
-        case .waiting:
-            return "circle"
-        case .running:
-            return "arrow.triangle.2.circlepath"
-        case .success:
-            return "checkmark"
-        case .failed, .failure:
-            return "xmark"
+        case .waiting: return "circle"
+        case .running: return "arrow.triangle.2.circlepath"
+        case .success: return "checkmark"
+        case .failed, .failure: return "xmark"
         }
     }
     
