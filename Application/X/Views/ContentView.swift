@@ -284,9 +284,9 @@ struct ContentView: View {
     // MARK: - 辅助函数
     private func compatibilityText(for type: ExploitType) -> String {
         switch type {
-        case .kernelExploit: // 修复：使用正确的枚举值
+        case .kernelTypeConfusion: // 修复：使用正确的枚举值
             return isCompatibleWithKernelExploit() ? "兼容" : "不兼容"
-        case .WebkitExploit: // 修复：使用正确的枚举值
+        case .WebkitExploit:
             return isCompatibleWithWebKitExploit() ? "兼容" : "不兼容"
         case .vmBehaviorZero:
             return isCompatibleWithVMExploit() ? "兼容" : "不兼容"
@@ -297,9 +297,9 @@ struct ContentView: View {
     
     private func compatibilityColor(for type: ExploitType) -> Color {
         switch type {
-        case .kernelExploit: // 修复：使用正确的枚举值
+        case .kernelTypeConfusion: // 修复：使用正确的枚举值
             return isCompatibleWithKernelExploit() ? .green : .red
-        case .WebkitExploit: // 修复：使用正确的枚举值
+        case .WebkitExploit:
             return isCompatibleWithWebKitExploit() ? .green : .orange
         case .vmBehaviorZero:
             return isCompatibleWithVMExploit() ? .green : .blue
@@ -689,6 +689,7 @@ struct ActionButtonView: View {
     }
 }
 
+// 将 showJailbreakOptions 移到结构体内部
 private func showJailbreakOptions() {
     alertTitle = "越狱高级选项"
     alertMessage = """
