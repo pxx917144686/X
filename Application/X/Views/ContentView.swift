@@ -850,8 +850,8 @@ extension ContentView {
         
         // 调用ExploitChainManager准备畸形MP4文件
         ExploitChainManager.shared.prepareCorruptedMP4File { success, url in
-            // 直接使用self，无需weak
-            if success, let fileURL = url {
+            // 直接使用self，无需weak修饰
+            if success, let fileURL = url {  // 确保url是正确类型
                 self.logStore.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
                 
                 // 创建AVPlayer播放畸形文件
@@ -859,7 +859,11 @@ extension ContentView {
                 let player = AVPlayer(playerItem: playerItem)
                 
                 // 播放前添加通知监听崩溃或失败
-                NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { _ in
+                NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, 
+                                                      object: playerItem, 
+                                                      queue: .main) { _ in
+                    // 直接使用self, 无需weak
+                    // 处理逻辑
                     self.logStore.append(message: "播放失败 - 漏洞可能已触发")
                     
                     // 清理通知
@@ -1034,11 +1038,75 @@ extension ContentView {
         // 在这里定义prepareCorruptedMP4File而非在外层
         prepareCorruptedMP4File { success, url in
             // 现在可以安全使用self
-            if success, let fileURL = url {
+            if success, let fileURL = url as? URL {  // 确保url是正确类型
                 self.logStore.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
             } else {
                 self.logStore.append(message: "创建畸形MP4文件失败")
             }
         }
+    }
+}
+
+// 修复第614行复杂表达式
+// 将body属性拆分为多个子视图
+extension ExploitChainMainView {
+    var body: some View {
+        mainContentView
+    }
+    
+    // 定义子视图组件
+    private var mainContentView: some View {
+        VStack {
+            // 标题
+            TitleHeaderView()
+            
+            // 漏洞类型选择器
+            ExploitSelectorView(selectedExploit: $selectedExploit)
+            
+            // 执行按钮
+            ActionButtonView(isRunning: isRunning, action: executeAction)
+            
+            if isRunning || !exploitStages.isEmpty {
+                // 进度条
+                ProgressBarView(progress: exploitProgress)
+                
+                // 阶段列表
+                StagesView(
+                    stages: exploitStages,
+                    currentIndex: currentStageIndex,
+                    isRunning: isRunning
+                )
+                
+                // 技术详情
+                if !techDetails.isEmpty {
+                    TechDetailsToggleView(
+                        isExpanded: $showTechDetails,
+                        content: techDetails
+                    )
+                }
+            }
+            
+            // 日志区域
+            LogsView(logStore: logStore, statusText: statusText)
+        }
+        .padding(.vertical)
+        .alert(isPresented: $showAlert) {
+            Alert(
+                title: Text(alertTitle),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("确定"))
+            )
+        }
+    }
+    
+    private var actionButtonsView: some View {
+        // 放置按钮逻辑
+        HStack {
+            // 按钮代码
+        }
+    }
+    
+    private var statusView: some View {
+        // 状态显示相关代码
     }
 }
