@@ -17,7 +17,7 @@ bool trigger_kernel_exploit(void);
 #import <spawn.h>
 #import <sys/wait.h>
 #import <CoreFoundation/CoreFoundation.h>
-#import <mach/mach.h>  // 添加此头文件包含 mach_task_self()
+#import <mach/mach.h>  // 已包含 mach_task_self 宏
 
 // IOKit 类型声明 - 修正类型定义
 typedef mach_port_t io_object_t;
@@ -44,9 +44,6 @@ extern kern_return_t IOConnectCallMethod(
     uint32_t *outputCnt,
     void *outputStruct,
     size_t *outputStructCnt);
-
-// 添加 mach_task_self 函数声明
-extern task_port_t mach_task_self(void);
 
 // 全局变量
 static bool g_has_kernel_access = false;
@@ -199,6 +196,7 @@ bool exploit_iokit_cve_2023_42824(void) {
     }
     
     io_connect_t connect;
+    // 使用系统定义的宏 mach_task_self()，不再需要函数声明
     kern_return_t kr = IOServiceOpen(service, mach_task_self(), 0, &connect);
     IOObjectRelease(service);
     
