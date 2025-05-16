@@ -50,7 +50,7 @@ class SileoInstaller {
                 }
                 
                 // 如果URL Scheme失败，尝试直接启动
-                DispatchQueue.global(qos: .userInitiated).async {
+                DispatchQueue.global(qos: .userInitiated).async { [self] in
                     // 尝试多种方法重启SpringBoard，确保图标显示
                     _ = self.executeCommand("/usr/bin/killall", withArguments: ["-9", "SpringBoard"])
                     
