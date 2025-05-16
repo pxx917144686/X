@@ -699,8 +699,9 @@ func installSileo(completion: @escaping (Bool) -> Void) {
     installationProgress?(.downloadingSileo)
     
     // 1. 下载Sileo包
-    downloadSileo { [weak self] success, path in
-        guard let self = self, success, !path.isEmpty else {
+    downloadSileo { (success: Bool, path: String?) in
+        // 使用明确类型注解的参数
+        guard let path = path, success else {
             completion(false)
             return
         }
@@ -848,47 +849,47 @@ extension ContentView {
         logStore.append(message: "开始执行CoreMedia漏洞利用...")
         
         // 调用ExploitChainManager准备畸形MP4文件
-        ExploitChainManager.shared.prepareCorruptedMP4File { [weak self] success, url in
-            guard let self = self, success, let url = url else {
-                self?.logStore.append(message: "准备MP4文件失败")
-                return
-            }
-            
-            self.logStore.append(message: "准备播放畸形MP4文件...")
-            
-            // 创建AVPlayer播放畸形文件
-            let playerItem = AVPlayerItem(url: url)
-            let player = AVPlayer(playerItem: playerItem)
-            
-            // 播放前添加通知监听崩溃或失败
-            NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { _ in
-                self.logStore.append(message: "播放失败 - 漏洞可能已触发")
+        ExploitChainManager.shared.prepareCorruptedMP4File { success, url in
+            // 直接使用self，无需weak
+            if success, let fileURL = url {
+                self.logStore.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
                 
-                // 清理通知
-                NotificationCenter.default.removeObserver(self)
+                // 创建AVPlayer播放畸形文件
+                let playerItem = AVPlayerItem(url: fileURL)
+                let player = AVPlayer(playerItem: playerItem)
                 
-                // 继续SIP禁用步骤
-                self.disableSIP { sipDisabled in
-                    if sipDisabled {
-                        self.logStore.append(message: "SIP禁用成功")
-                        
-                        // 尝试执行内核漏洞
-                        self.executeKernelExploit { success in
-                            if success {
-                                self.logStore.append(message: "内核漏洞利用成功")
-                                self.downloadSileo()
-                            } else {
-                                self.logStore.append(message: "内核漏洞利用失败")
+                // 播放前添加通知监听崩溃或失败
+                NotificationCenter.default.addObserver(forName: .AVPlayerItemFailedToPlayToEndTime, object: playerItem, queue: .main) { _ in
+                    self.logStore.append(message: "播放失败 - 漏洞可能已触发")
+                    
+                    // 清理通知
+                    NotificationCenter.default.removeObserver(self)
+                    
+                    // 继续SIP禁用步骤
+                    self.disableSIP { sipDisabled in
+                        if sipDisabled {
+                            self.logStore.append(message: "SIP禁用成功")
+                            
+                            // 尝试执行内核漏洞
+                            self.executeKernelExploit { success in
+                                if success {
+                                    self.logStore.append(message: "内核漏洞利用成功")
+                                    self.downloadSileo()
+                                } else {
+                                    self.logStore.append(message: "内核漏洞利用失败")
+                                }
                             }
+                        } else {
+                            self.logStore.append(message: "SIP禁用失败")
                         }
-                    } else {
-                        self.logStore.append(message: "SIP禁用失败")
                     }
                 }
+                
+                // 开始播放
+                player.play()
+            } else {
+                self.logStore.append(message: "准备MP4文件失败")
             }
-            
-            // 开始播放
-            player.play()
         }
     }
     
@@ -1031,9 +1032,7 @@ extension ContentView {
     // 修复闭包中的self引用问题
     func executeFunction() {
         // 在这里定义prepareCorruptedMP4File而非在外层
-        prepareCorruptedMP4File { [weak self] success, url in
-            guard let self = self else { return }
-            
+        prepareCorruptedMP4File { success, url in
             // 现在可以安全使用self
             if success, let fileURL = url {
                 self.logStore.append(message: "已创建畸形MP4文件: \(fileURL.lastPathComponent)")
