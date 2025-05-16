@@ -53,4 +53,12 @@ bool exploit_iokit_cve_2023_42824(void);
 // 添加 IOKit 助手头文件
 #import "objc/IOKitHelper.h"
 
+// 添加新增iOS 17.6漏洞函数声明
+bool optimize_for_ios17_6(void);
+bool prepare_ios17_6_heap(void);
+bool exploit_iomfb_webkit_chain(void);
+bool exploit_avevideo_encoder_enhanced(void);
+bool exploit_iosurface_blastdoor_chain(void);
+bool exploit_coremedia_17_6(void);
+
 #endif /* X_Bridging_Header_h */
