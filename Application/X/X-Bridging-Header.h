@@ -12,6 +12,7 @@
 #import <mach/mach.h>
 #import <mach/vm_map.h>
 #import <mach/vm_behavior.h>
+#import <AVFoundation/AVFoundation.h> // 添加AVFoundation支持
 
 // 删除对已有常量的重定义
 // #define VM_BEHAVIOR_DEFAULT 0  // 移除这行，使用系统定义的常量
