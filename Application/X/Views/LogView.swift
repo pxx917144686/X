@@ -8,12 +8,12 @@
 import SwiftUI
 
 struct LogView: View {
-    @ObservedObject var logStore: LogStore
+    @ObservedObject var logStore = LogStore.shared
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 4) {
-                // 使用logs属性而不是messages
+                // 确保LogStore有正确的属性名
                 ForEach(logStore.logs, id: \.self) { message in
                     Text(message)
                         .font(.system(.footnote, design: .monospaced))
