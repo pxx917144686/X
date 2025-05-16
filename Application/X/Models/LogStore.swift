@@ -22,7 +22,7 @@ class LogStore: ObservableObject {
             print(logEntry)
             self.logs.append(logEntry)
             
-            // 限制日志数量
+            // 限制日志数量以避免内存占用过多
             if self.logs.count > 1000 {
                 self.logs.removeFirst(500)
             }
