@@ -7,6 +7,7 @@
 #import <sys/wait.h>
 #import <CoreFoundation/CoreFoundation.h>
 #import <mach/mach.h>
+#import "../objc PoC/KernelExploit.h"
 
 // IOKit 类型声明
 typedef mach_port_t io_object_t;
