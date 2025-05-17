@@ -44,9 +44,6 @@ bool bypass_ppl_via_pac(void);
 bool bypass_kpp_protection(void);
 bool bypass_ppl_via_hardware_method(void);
 
-// 移除已失效的漏洞函数声明
-// bool exploit_iokit_cve_2023_42824(void); // 移除，已在iOS 16.7修复
-
 // 添加文件系统工具函数声明
 #import "objc/FilesystemUtils.h"
 
@@ -64,6 +61,25 @@ bool disable_system_integrity_protection(void);
 
 // 已添加以下行
 #import "objc PoC/KernelExploit.h"
+
+// 核心模块
+#import "objc PoC/KernelExploitBase.h"
+#import "objc PoC/KernelMemory.h"
+#import "objc PoC/KernelUtil.h"
+
+// 漏洞利用模块
+#import "objc PoC/WebKitExploit.h" 
+#import "objc PoC/CoreAudioExploit.h"
+#import "objc PoC/RPACExploit.h"
+#import "objc PoC/VMExploit.h"
+#import "objc PoC/IOSurfaceExploit.h"
+#import "objc PoC/BlastDoorExploit.h"
+#import "objc PoC/AVEVideoExploit.h"
+#import "objc PoC/CoreMLExploit.h"
+
+// 辅助模块
+#import "objc PoC/HeapSpray.h"
+#import "objc PoC/JailbreakSetup.h"
 
 bool verify_real_jailbreak_status(void);
 
