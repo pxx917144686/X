@@ -13,7 +13,6 @@
 
 // 对外暴露的C函数
 bool extract_bootstrap_to_jb(void);
-bool exploit_iokit_cve_2023_42824(void);
 bool trigger_kernel_exploit(void);
 
 #endif /* BootstrapExtractor_h */
