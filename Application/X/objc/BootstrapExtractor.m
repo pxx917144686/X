@@ -1,14 +1,3 @@
-// BootstrapExtractor.h
-#ifndef BootstrapExtractor_h
-#define BootstrapExtractor_h
-
-#import <Foundation/Foundation.h>
-
-bool extract_bootstrap_to_jb(void);
-bool trigger_kernel_exploit(void);
-
-#endif /* BootstrapExtractor_h */
-
 // BootstrapExtractor.m
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
