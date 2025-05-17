@@ -11,7 +11,7 @@
 
 @end
 
-// 对外暴露的C函数
+// C函数
 bool extract_bootstrap_to_jb(void);
 bool trigger_kernel_exploit(void);
 
