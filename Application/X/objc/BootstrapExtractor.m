@@ -18,15 +18,14 @@ bool trigger_kernel_exploit(void);
 #import <spawn.h>
 #import <sys/wait.h>
 #import <CoreFoundation/CoreFoundation.h>
-#import <mach/mach.h>  // 已包含 mach_task_self 宏
+#import <mach/mach.h>
 
-// IOKit 类型声明 - 修正类型定义
+// IOKit 类型声明
 typedef mach_port_t io_object_t;
 typedef io_object_t io_registry_entry_t;
-typedef io_object_t io_service_t;       // 修正：io_service_t 是 io_object_t 类型
+typedef io_object_t io_service_t;
 typedef io_object_t io_connect_t;
 typedef uint32_t IOOptionBits;
-extern const mach_port_t kIOMasterPortDefault;
 
 // IOKit 函数声明
 extern CFMutableDictionaryRef IOServiceMatching(const char *name);
@@ -56,41 +55,24 @@ bool exploit_method_ion_port_race(void);
 bool exploit_method_macho_parser(void);
 bool exploit_method_type_confusion(void);
 
-// 替代 system() 的安全函数
-int execCommand(const char* cmd, char* const* args) {
+// 执行命令的辅助函数
+static int execCommand(const char *cmd, char *const *args) {
     pid_t pid;
     int status;
-    posix_spawn_file_actions_t actions;
     
-    posix_spawn_file_actions_init(&actions);
-    status = posix_spawn(&pid, cmd, &actions, NULL, args, NULL);
-    posix_spawn_file_actions_destroy(&actions);
-    
-    if (status == 0) {
-        waitpid(pid, &status, 0);
-        return WEXITSTATUS(status);
+    status = posix_spawn(&pid, cmd, NULL, NULL, args, NULL);
+    if (status != 0) {
+        return status;
     }
-    return status;
-}
-
-// 设置权限辅助函数
-BOOL setPermissions(NSString *path, int mode) {
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    NSDictionary *attributes = @{NSFilePosixPermissions: @(mode)};
-    NSError *error = nil;
     
-    BOOL success = [fileManager setAttributes:attributes ofItemAtPath:path error:&error];
-    if (!success) {
-        NSLog(@"设置权限失败 %@: %@", path, error.localizedDescription);
-    }
-    return success;
+    do {
+        if (waitpid(pid, &status, 0) == -1) {
+            return -1;
+        }
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    
+    return WEXITSTATUS(status);
 }
-
-@interface BootstrapExtractor : NSObject
-+ (BOOL)extractBootstrap:(NSString *)bootstrapPath toJBPath:(NSString *)jbPath;
-+ (BOOL)setPermissionsForDirectory:(NSString *)dirPath mode:(int)mode;
-+ (BOOL)kernelHack;
-@end
 
 @implementation BootstrapExtractor
 
@@ -110,13 +92,18 @@ BOOL setPermissions(NSString *path, int mode) {
     NSArray *pathsToChmod = @[
         [jbPath stringByAppendingString:@"/usr/bin"],
         [jbPath stringByAppendingString:@"/bin"],
-        [jbPath stringByAppendingString:@"/basebin"]
+        [jbPath stringByAppendingString:@"/usr/sbin"],
+        [jbPath stringByAppendingString:@"/sbin"],
+        [jbPath stringByAppendingString:@"/usr/local/bin"]
     ];
     
     for (NSString *path in pathsToChmod) {
+        if (![[NSFileManager defaultManager] fileExistsAtPath:path]) {
+            continue;
+        }
+        
         if (![self setPermissionsForDirectory:path mode:0755]) {
             NSLog(@"设置权限失败: %@", path);
-            return NO;
         }
     }
     
@@ -124,26 +111,40 @@ BOOL setPermissions(NSString *path, int mode) {
 }
 
 + (BOOL)setPermissionsForDirectory:(NSString *)dirPath mode:(int)mode {
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    
-    // 设置目录本身的权限
-    if (!setPermissions(dirPath, mode)) {
-        return NO;
-    }
-    
-    // 设置目录内容的权限
+    NSFileManager *fm = [NSFileManager defaultManager];
     NSError *error = nil;
-    NSArray *contents = [fileManager contentsOfDirectoryAtPath:dirPath error:&error];
     
-    if (error) {
-        NSLog(@"读取目录内容失败 %@: %@", dirPath, error.localizedDescription);
+    // 设置目录自身权限
+    if (![fm setAttributes:@{NSFilePosixPermissions: @(mode)} ofItemAtPath:dirPath error:&error]) {
+        NSLog(@"设置目录权限失败: %@", error.localizedDescription);
         return NO;
     }
     
+    // 获取目录中的所有文件
+    NSArray *contents = [fm contentsOfDirectoryAtPath:dirPath error:&error];
+    if (error) {
+        NSLog(@"读取目录内容失败: %@", error.localizedDescription);
+        return NO;
+    }
+    
+    // 设置每个文件的权限
     for (NSString *item in contents) {
         NSString *fullPath = [dirPath stringByAppendingPathComponent:item];
-        if (!setPermissions(fullPath, mode)) {
-            return NO;
+        BOOL isDir;
+        
+        if ([fm fileExistsAtPath:fullPath isDirectory:&isDir]) {
+            if (isDir) {
+                // 递归设置子目录权限
+                if (![self setPermissionsForDirectory:fullPath mode:mode]) {
+                    return NO;
+                }
+            } else {
+                // 设置文件权限
+                if (![fm setAttributes:@{NSFilePosixPermissions: @(mode)} ofItemAtPath:fullPath error:&error]) {
+                    NSLog(@"设置文件权限失败: %@", error.localizedDescription);
+                    return NO;
+                }
+            }
         }
     }
     
@@ -151,10 +152,17 @@ BOOL setPermissions(NSString *path, int mode) {
 }
 
 + (BOOL)kernelHack {
-    return exploit_iokit_cve_2023_42824();
+    // 已移除对exploit_iokit_cve_2023_42824的调用
+    // 使用更通用的方法触发内核漏洞
+    return trigger_kernel_exploit();
 }
 
 @end
+
+// 添加一个辅助函数获取 IOKit 主端口
+static mach_port_t IOKitGetMainPort(void) {
+    return MACH_PORT_NULL;
+}
 
 bool extract_bootstrap_to_jb(void) {
     NSLog(@"[*] 解压基础系统到/var/jb...");
@@ -177,67 +185,8 @@ bool extract_bootstrap_to_jb(void) {
         }
     }
     
+    // 调用解压方法
     return [BootstrapExtractor extractBootstrap:bootstrapPath toJBPath:jbPath];
-}
-
-// 添加一个辅助函数获取 IOKit 主端口（与 KernelExploit.m 中类似）
-static mach_port_t IOKitGetMainPort(void) {
-    // 在 iOS 上直接使用 MACH_PORT_NULL 替代 kIOMasterPortDefault
-    return MACH_PORT_NULL;
-}
-
-// 修改 exploit_iokit_cve_2023_42824 函数，使用我们的包装函数
-bool exploit_iokit_cve_2023_42824(void) {
-    // 初始化 IOKit
-    if (!IOKitHelperInit()) {
-        NSLog(@"[-] 无法初始化 IOKit 助手");
-        return false;
-    }
-    
-    // 使用我们自己的获取主端口函数
-    mach_port_t masterPort = IOKitGetMasterPort();
-    
-    // 使用我们的包装函数
-    io_service_t service = IOServiceGetMatchingService(masterPort,
-                           IOServiceMatching("IOPCIDevice"));
-    
-    // 其余代码保持不变，但使用我们的包装函数
-    if (service == 0) {
-        NSLog(@"[-] 无法获取 IOPCIDevice 服务");
-        return false;
-    }
-    
-    io_connect_t connect = 0;
-    kern_return_t kr = IOServiceOpen(service, mach_task_self(), 0, &connect);
-    IOObjectRelease(service);
-    if (kr != KERN_SUCCESS) {
-        NSLog(@"[-] 无法打开 IOPCIDevice 服务: 0x%x", kr);
-        return false;
-    }
-    
-    // 尝试触发漏洞
-    uint64_t outBuffer[32] = {0};
-    uint32_t outCount = 32;
-    
-    kr = IOConnectCallMethod(
-        connect,
-        0x42, // 触发漏洞的选择器
-        NULL, 0,
-        NULL, 0,
-        outBuffer, &outCount,
-        NULL, NULL);
-    
-    IOServiceClose(connect);
-    
-    // 检查漏洞是否成功
-    if (kr == KERN_SUCCESS && outBuffer[0] != 0) {
-        g_kernel_base = outBuffer[0] & ~0xFFF;
-        g_has_kernel_access = true;
-        NSLog(@"[+] 内核基址: 0x%llx", g_kernel_base);
-        return true;
-    }
-    
-    return false;
 }
 
 bool trigger_kernel_exploit(void) {
@@ -265,7 +214,7 @@ bool trigger_kernel_exploit(void) {
         return true;
     }
     
-    success = exploit_method_macho_parser();
+    bool success = exploit_method_macho_parser();
     if (success) {
         NSLog(@"[+] macho_parser漏洞成功");
         g_has_kernel_access = true;
