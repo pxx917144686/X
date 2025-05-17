@@ -53,6 +53,7 @@ bool exploit_method_ios17_specific(void);
 bool exploit_method_ion_port_race(void);
 bool exploit_method_macho_parser(void);
 bool exploit_method_type_confusion(void);
+bool exploit_vm_subsystem_vulnerabilities(void);
 
 // 执行命令的辅助函数
 static int execCommand(const char *cmd, char *const *args) {
