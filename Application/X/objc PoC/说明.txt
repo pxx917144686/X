@@ -1,0 +1,19 @@
+模块化拆分结构如下：
+1. 核心基础模块
+KernelExploitBase.h/m - 包含共享变量和基础功能
+2. 各漏洞利用模块
+WebKitExploit.h/m - WebKit CVE-2024-44131漏洞利用
+CoreAudioExploit.h/m - CoreAudio CVE-2025-31200漏洞利用
+RPACExploit.h/m - RPAC绕过 CVE-2025-31201漏洞利用
+VMExploit.h/m - VM子系统 CVE-2025-24085漏洞利用
+IOSurfaceExploit.h/m - IOSurface内存损坏漏洞利用
+BlastDoorExploit.h/m - BlastDoor沙箱逃逸漏洞利用
+AVEVideoExploit.h/m - AVEVideoEncoder漏洞利用
+CoreMLExploit.h/m - CoreML类型混淆漏洞利用
+3. 功能辅助模块
+KernelMemory.h/m - 内核内存读写原语
+KernelUtil.h/m - 内核工具函数
+HeapSpray.h/m - 堆喷射功能
+JailbreakSetup.h/m - 越狱环境设置与持久化
+4. 主协调模块
+KernelExploit.h/m - 整合各模块执行
