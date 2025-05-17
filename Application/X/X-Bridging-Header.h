@@ -15,7 +15,7 @@
 #import <AVFoundation/AVFoundation.h> // 添加AVFoundation支持
 
 // 删除对已有常量的重定义
-// #define VM_BEHAVIOR_DEFAULT 0  // 移除这行，使用系统定义的常量
+// #define VM_BEHAVIOR_DEFAULT 0  // 移除
 
 // 自定义常量和宏
 #define VM_BEHAVIOR_ZERO_WIRED 7
@@ -43,7 +43,9 @@ bool connect_xpc_service(const char* serviceName);
 bool bypass_ppl_via_pac(void);
 bool bypass_kpp_protection(void);
 bool bypass_ppl_via_hardware_method(void);
-bool exploit_iokit_cve_2023_42824(void);
+
+// 移除已失效的漏洞函数声明
+// bool exploit_iokit_cve_2023_42824(void); // 移除，已在iOS 16.7修复
 
 // 添加文件系统工具函数声明
 #import "objc/FilesystemUtils.h"
@@ -54,18 +56,15 @@ bool exploit_iokit_cve_2023_42824(void);
 // 添加 IOKit 助手头文件
 #import "objc/IOKitHelper.h"
 
-// 添加新增iOS 17.6漏洞函数声明
-bool optimize_for_ios17_6(void);
-bool prepare_ios17_6_heap(void);
-bool exploit_iomfb_webkit_chain(void);
-bool exploit_avevideo_encoder_enhanced(void);
-bool exploit_iosurface_blastdoor_chain(void);
-bool exploit_coremedia_17_6(void);
+// 添加VM子系统漏洞声明
+bool exploit_vm_subsystem_vulnerabilities(void);
+bool exploit_vm_subsystem(void);
+bool verify_kernel_memory_access(void);
+bool disable_system_integrity_protection(void);
 
-// 确保已添加以下行
+// 已添加以下行
 #import "objc PoC/KernelExploit.h"
 
-// 或者直接在桥接头文件中声明函数
 bool verify_real_jailbreak_status(void);
 
 #endif /* X_Bridging_Header_h */
